@@ -1,0 +1,14 @@
+This research has been conducted on YouTube videos to output an extractive summary.
+This algorithmic summarization required the use of NLP libraries and other toolkits to work on videos as 
+though they are stored locally.
+Datasets that are likely to be related are segmented .json files and labeled video transcript .csv files. 
+This approach was non-applicable to conventional labeled datasets. 
+
+However, to test application efficacy, a number of videos have been sampled during the testing phase 
+and had their performance evaluated
+Finally, as an extension to this work, one can acquire a dataset of unlabeled video links with the following fields:
+
+ID------YouTube URL------SUMMARY------APPROACH
+
+where the summary and approach fields are to be filled as the user goes through the tests.
+Despite this extension's likely success, data acquisition and preparation are not within scope of this paper.

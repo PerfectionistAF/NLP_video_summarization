@@ -1,0 +1,2592 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<!-- saved from url=(0083)https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>LexRank: Graph-based Lexical Centrality as Salience in Text Summarization</title>
+<meta name="description" content="LexRank: Graph-based Lexical Centrality as Salience in Text Summarization">
+<meta name="keywords" content="erkan04a">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+
+
+<meta name="Generator" content="LaTeX2HTML v2002">
+<meta http-equiv="Content-Style-Type" content="text/css">
+
+<link rel="STYLESHEET" href="./Lexrank_files/erkan04a.css">
+
+</head>
+
+<body>
+
+<p>
+
+</p><p>
+
+</p><h1 align="CENTER">LexRank: Graph-based Lexical Centrality as Salience in Text Summarization</h1>
+<p align="CENTER"><strong>Güne&#351; Erkan<img width="12" height="19" align="BOTTOM" border="0" src="./Lexrank_files/img1.gif" alt="$^1$"> gerkan@umich.edu
+<br> Dragomir R. Radev<img width="22" height="19" align="BOTTOM" border="0" src="./Lexrank_files/img2.gif" alt="$^{2,1}$"> radev@umich.edu
+<br>  <img width="12" height="19" align="BOTTOM" border="0" src="./Lexrank_files/img3.gif" alt="$^1$">Department of EECS, <img width="12" height="19" align="BOTTOM" border="0" src="./Lexrank_files/img4.gif" alt="$^2$">School of Information
+<br>  University of Michigan, Ann Arbor, MI 48109 USA
+</strong></p>
+
+<p>
+
+</p><h3>Abstract:</h3>
+<div>
+We introduce a stochastic graph-based method for computing relative
+importance of textual units for Natural Language Processing. We test
+the technique on the problem of Text Summarization (TS).  Extractive
+TS relies on the concept of sentence salience to identify the most
+important sentences in a document or set of documents. Salience is
+typically defined in terms of the presence of particular important
+words or in terms of similarity to a centroid pseudo-sentence. We
+consider a new approach, LexRank, for computing sentence importance
+based on the concept of eigenvector centrality in a graph
+representation of sentences.  In this model, a connectivity matrix
+based on intra-sentence cosine similarity is used as the adjacency
+matrix of the graph representation of sentences.  Our system, based on
+LexRank ranked in first place in more than one task in the recent DUC
+2004 evaluation.  In this paper we present a detailed analysis of our
+approach and apply it to a larger data set including data from earlier
+DUC evaluations.  We discuss several methods to compute centrality
+using the similarity graph.  The results show that degree-based
+methods (including LexRank) outperform both centroid-based methods and
+other systems participating in DUC in most of the cases. Furthermore,
+the LexRank with threshold method outperforms the other degree-based
+techniques including continuous LexRank. We also show that our
+approach is quite insensitive to the noise in the data that may result
+from an imperfect topical clustering of documents.
+</div>
+<p>
+
+</p><p>
+
+</p><h1><a name="SECTION00010000000000000000">
+1 Introduction</a>
+</h1>
+In recent years, natural language processing (NLP) has moved to a very
+firm mathematical foundation. Many problems in NLP, e.g.,
+parsing [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Collins97">Col97</a>], word sense disambiguation [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Yarowsky95">Yar95</a>],
+and automatic paraphrasing [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Barzilay_SPMamp_Lee03">BL03</a>] have benefited
+significantly by the introduction of robust statistical
+techniques. Recently, robust graph-based methods for NLP have also
+been gaining a lot of interest, e.g., in word clustering
+[<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Brew_SPMamp_SchulteImWalde02">BiW02</a>] and prepositional phrase
+attachment [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Toutanova_SPMamp_al.04">TMN04</a>]. 
+
+<p>
+In this paper, we will take graph-based methods in NLP one step
+further. We will discuss how random walks on sentence-based graphs can
+help in text summarization. We will also briefly discuss how similar
+techniques can be applied to other NLP tasks such as named entity
+classification, prepositional phrase attachment, and text
+classification (e.g., spam recognition).
+
+</p><p>
+Text summarization is the process of automatically creating a
+compressed version of a given text that provides useful information
+for the user.  The information content of a summary depends on user's
+needs.  Topic-oriented summaries focus on a user's topic of interest,
+and extract the information in the text that is related to the
+specified topic.  On the other hand, generic summaries try to cover as
+much of the information content as possible, preserving the general
+topical organization of the original text.  In this paper, we focus on
+multi-document extractive generic text summarization, where the goal
+is to produce a summary of multiple documents about the same, but
+unspecified topic.
+
+</p><p>
+Extractive summarization produces summaries by choosing a subset of
+the sentences in the original document(s).  This contrasts with
+abstractive summarization, where the information in the text is
+rephrased.  Although summaries produced by humans are typically not
+extractive, most of the summarization research today is on extractive
+summarization.  Purely extractive summaries often give better results
+compared to automatic abstractive summaries.  This is due to the fact
+that the problems in abstractive summarization, such as semantic
+representation, inference and natural language generation, are
+relatively harder compared to a data-driven approach such as sentence
+extraction.  In fact, truly abstractive summarization has not reached
+to a mature stage today.  Existing abstractive summarizers often
+depend on an extractive preprocessing component.  The output of the
+extractor is cut and pasted, or compressed to produce the abstract of
+the text [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Witbrock_SPMamp_Mittal99">WM99</a>,<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Jing02-cl">Jin02</a>,<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Knight_SPMamp_Marcu00">KM00</a>].  SUMMONS
+[<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Radev_SPMamp_McKeown98">RM98</a>] is an example of a multi-document summarizer
+which extracts and combines information from multiple sources and
+passes this information to a language generation component to produce
+the final summary.
+
+</p><p>
+Early research on extractive summarization is based on 
+simple heuristic features of the sentences such as
+their position in the text, the overall frequency
+of the words they contain, or some key phrases indicating the 
+importance of the sentences 
+[<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#baxendale58">Bax58</a>,<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#edmundson69">Edm69</a>,<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#luhn58">Luh58</a>].
+A commonly used measure to assess the importance of the words
+in a sentence is the
+<i>inverse document frequency</i>, or
+idf, which is defined by the formula [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#sparck72statistical">SJ72</a>]:
+<br>
+</p><div align="RIGHT">
+
+<!-- MATH
+ \begin{equation}
+\textrm{idf}_i = \textrm{log}\Big(\frac{N}{n_i}\Big)
+\end{equation}
+ -->
+<table width="100%" align="CENTER">
+<tbody><tr valign="MIDDLE"><td align="CENTER" nowrap=""><img width="108" height="45" border="0" src="./Lexrank_files/img5.gif" alt="\begin{displaymath}
+\textrm{idf}_i = \textrm{log}\Big(\frac{N}{n_i}\Big)
+\end{displaymath}"></td>
+<td width="10" align="RIGHT">
+(1)</td></tr>
+</tbody></table>
+<br clear="ALL"></div><p></p>
+where 
+<img width="20" height="15" align="BOTTOM" border="0" src="./Lexrank_files/img6.gif" alt="$N$"> is the total number of the documents in a collection, and
+<img width="20" height="30" align="MIDDLE" border="0" src="./Lexrank_files/img7.gif" alt="$n_i$"> is the number of documents in which word <img width="10" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img8.gif" alt="$i$"> occurs.
+For example, the words that are likely to occur
+in almost every document (e.g. articles ``a" and ``the")
+have idf values close to zero
+while rare words (e.g. medical terms, proper nouns)
+typically have higher idf values.
+
+<p>
+More advanced techniques also
+consider the relation between sentences
+or the discourse structure by using synonyms of the words or
+anaphora resolution [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Mani_SPMamp_Bloedorn97a">MB97</a>,<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Barzilay_SPMamp_Elhadad99">BE99</a>].
+Researchers have also 
+tried to integrate machine learning into summarization
+as more features have been proposed and
+more training data have become available
+[<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Kupiec_SPMamp_al.95">KPC95</a>,<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#lin99">Lin99</a>,<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Osborne02">Osb02</a>,<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#daumeiii-marcu:2004:EMNLP1">DIM04</a>].
+
+</p><p>
+Our summarization approach in this paper
+is to assess the <i>centrality</i>
+of each sentence in a cluster and extract the most important
+ones to include in the summary.
+We investigate different ways of defining
+the lexical centrality principle in multi-document summarization,
+which measures centrality in terms of lexical properties of the sentences.
+
+</p><p>
+In Section&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#centroid-based">2</a>, we
+present centroid-based summarization, 
+a well-known method for judging sentence centrality. Then we
+introduce three new measures for centrality, Degree, LexRank with
+threshold, and continuous LexRank, inspired
+from the ``prestige'' concept in social networks. 
+We propose a graph representation of a document cluster, where
+vertices represent the sentences and edges are defined in terms
+of the similarity relation between pairs of sentences.
+This representation enables us to make use of several centrality
+heuristics defined on graphs.
+We compare
+our new methods with centroid-based summarization
+using a feature-based generic summarization toolkit,
+MEAD, and show that our new features outperform Centroid
+in most of the cases. Test data for our experiments are
+taken from 
+2003 and 2004 summarization evaluations of
+Document
+Understanding Conferences (DUC) 
+to compare our system with other state-of-the-art 
+summarization systems and human performance as well.
+
+</p><p>
+
+</p><h1><a name="SECTION00020000000000000000"></a>
+<a name="centroid-based"></a><br>
+2 Sentence Centrality and Centroid-based Summarization
+</h1>
+Extractive summarization works by choosing a subset
+of the sentences in the original documents.
+This process can be viewed as identifying the most
+<i>central</i> sentences in a (multi-document)
+cluster that give the necessary and
+sufficient amount of information related to the main theme of the cluster.
+Centrality of a sentence is often defined in terms of the centrality of
+the words that it contains.
+A common way of assessing word centrality is to look at the centroid
+of the document cluster in a vector space.
+The centroid of a cluster is
+a pseudo-document which 
+consists of words that have tf<img width="18" height="30" align="MIDDLE" border="0" src="./Lexrank_files/img9.gif" alt="$\times$">idf scores above a predefined
+threshold, where tf is the frequency of a word in the cluster, and
+idf values are typically computed over a much larger and similar
+genre data set.
+In centroid-based summarization [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Radev_SPMamp_al.00">RJB00</a>],
+the sentences that contain more words from the 
+centroid
+of the
+cluster are considered as central
+(Algorithm&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#alg-centroid">1</a>).
+This is a measure of how close the sentence is to the centroid of
+the cluster.
+Centroid-based summarization has given promising results
+in the past, and it has resulted in the first
+web-based multi-document summarization system<a name="tex2html1" href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/footnode.html#foot132"><sup>1</sup></a> [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Radev_SPMamp_al.01h">RBGZ01</a>].
+
+<p>
+
+<br>
+<a name="alg-centroid"></a><img width="418" height="439" align="BOTTOM" border="0" src="./Lexrank_files/img10.gif" alt="\begin{algorithm}
+% latex2html id marker 46{\scriptsize\SetKwInOut{Input}{inpu...
+...}\}$\;
+}
+}
+\Return{$C$}\;
+}
+\caption{Computing Centroid scores.}\end{algorithm}">
+<br>
+
+</p><p>
+
+</p><h1><a name="SECTION00030000000000000000">
+3 Centrality-based Sentence Salience</a>
+</h1>
+In this section, we propose several other criteria to assess sentence
+salience. All of our approaches are based on the concept
+of <i>prestige</i><a name="tex2html3" href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/footnode.html#foot79"><sup>2</sup></a>in social networks, which has also inspired
+many ideas in computer networks and information retrieval.
+A social network is a mapping of relationships 
+between interacting entities (e.g. people, organizations,
+computers).
+Social networks are represented as graphs, where the nodes
+represent the entities and the links represent
+the relations between the nodes.
+
+<p>
+A cluster of documents can be viewed as a network of sentences that
+are related to each other.  Some sentences are more similar to each
+other while some others may share only a little information with the
+rest of the sentences.  We hypothesize that the sentences that are
+similar to many of the other sentences in a cluster are more central
+(or <i>salient</i>) to the topic.  There are two points to clarify in
+this definition of centrality. First is how to define similarity
+between two sentences. Second is how to compute the overall centrality
+of a sentence given its similarity to other sentences.
+
+</p><p>
+To define similarity, we use the bag-of-words model to represent each
+sentence as an <img width="20" height="15" align="BOTTOM" border="0" src="./Lexrank_files/img11.gif" alt="$N$">-dimensional vector, where <img width="20" height="15" align="BOTTOM" border="0" src="./Lexrank_files/img12.gif" alt="$N$"> is the number
+of all possible words in the target language.
+For each word that occurs in a sentence, the value of the corresponding
+dimension in the vector representation of the sentence
+is the number of occurrences of the word in the sentence times
+the idf of the word.
+The similarity between two sentences is then defined by the 
+cosine 
+between two corresponding vectors:
+<br>
+</p><div align="RIGHT">
+
+<!-- MATH
+ \begin{equation}
+\textrm{idf-modified-cosine}(x,y) = 
+\frac{\sum_{w\in{}x,y}
+\textrm{tf}_{w,x}\textrm{tf}_{w,y}(\textrm{idf}_w)^2}
+{\sqrt{\sum_{x_i\in{}x}(\textrm{tf}_{x_i,x}\textrm{idf}_{x_i})^2} \times
+\sqrt{\sum_{y_i\in{}y}(\textrm{tf}_{y_i,y}\textrm{idf}_{y_i})^2}}
+\end{equation}
+ -->
+<table width="100%" align="CENTER">
+<tbody><tr valign="MIDDLE"><td align="CENTER" nowrap=""><img width="535" height="62" border="0" src="./Lexrank_files/img13.gif" alt="\begin{displaymath}
+\textrm{idf-modified-cosine}(x,y) =
+\frac{\sum_{w\in{}x,y}
+...
+...rt{\sum_{y_i\in{}y}(\textrm{tf}_{y_i,y}\textrm{idf}_{y_i})^2}}
+\end{displaymath}"></td>
+<td width="10" align="RIGHT">
+(2)</td></tr>
+</tbody></table>
+<br clear="ALL"></div><p></p>
+where <!-- MATH
+ $\textrm{tf}_{w,s}$
+ -->
+<img width="37" height="32" align="MIDDLE" border="0" src="./Lexrank_files/img14.gif" alt="$\textrm{tf}_{w,s}$"> is the number of occurrences of the word
+<img width="17" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img15.gif" alt="$w$"> in the sentence <img width="13" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img16.gif" alt="$s$">.
+
+<p>
+A cluster of documents
+may be represented by a cosine similarity matrix where each
+entry in the matrix is the similarity between the corresponding sentence
+pair.
+Figure&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#cluster">1</a> shows a subset of a cluster
+used
+in DUC 2004, and the corresponding cosine similarity matrix.
+Sentence ID d<img width="20" height="15" align="BOTTOM" border="0" src="./Lexrank_files/img17.gif" alt="$X$">s<img width="18" height="15" align="BOTTOM" border="0" src="./Lexrank_files/img18.gif" alt="$Y$">
+indicates the <!-- MATH
+ $Y^{\textrm{th}}$
+ -->
+<img width="36" height="22" align="BOTTOM" border="0" src="./Lexrank_files/img19.gif" alt="$Y^{\textrm{th}}$"> sentence in the <!-- MATH
+ $X^{\textrm{th}}$
+ -->
+<img width="38" height="22" align="BOTTOM" border="0" src="./Lexrank_files/img20.gif" alt="$X^{\textrm{th}}$">
+document. This matrix can also be represented as a
+weighted graph where each edge shows the cosine similarity between
+a pair of sentence (Figure&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#weighted-graph">2</a>).
+In the following sections,
+we discuss several ways of computing sentence centrality using the cosine
+similarity matrix and the corresponding graph representation.
+
+</p><p>
+
+</p><h2><a name="SECTION00031000000000000000">
+3.1 Degree Centrality</a>
+</h2>
+In a cluster of related documents, many of the sentences are expected
+to be somewhat similar to each other since they are all about the
+same topic. This can be seen in Figure&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#cluster">1</a> where the majority
+of the values in the similarity matrix are nonzero. Since we are
+interested in <i>significant</i> similarities, we can eliminate 
+some low values in this matrix by defining a threshold so that
+the cluster can be viewed as an (undirected) graph,
+where each sentence of the cluster is a node, and
+significantly similar sentences are connected to each other.
+Figure&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#lpr-graph">3</a> shows
+the graphs that correspond to the adjacency matrices derived
+by assuming the pair of sentences that have a similarity above
+<img width="62" height="30" align="MIDDLE" border="0" src="./Lexrank_files/img21.gif" alt="$0.1, 0.2,$"> and <img width="27" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img22.gif" alt="$0.3$">, respectively,
+in Figure&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#cluster">1</a> are similar to each other. 
+Note that there should also be self links for all of the nodes in
+the graphs since every sentence is trivially similar to itself.
+Although we omit the self links for readability, the arguments
+in the following sections assume that they exist.
+
+<p>
+A simple way of assessing sentence centrality by looking at
+the graphs in Figure&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#lpr-graph">3</a> is to count the number
+of similar sentences for each sentence.
+We define
+<i>degree centrality</i> of a sentence
+as the degree of the corresponding node in the similarity graph.
+As seen in Table&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#degree-scores">1</a>, the choice of cosine threshold
+dramatically influences
+the interpretation of centrality. 
+Too low thresholds may mistakenly
+take weak similarities into consideration while too high thresholds may
+lose many of the similarity relations in a cluster.
+
+</p><p>
+
+</p><div align="CENTER"><a name="cluster"></a><a name="309"></a>
+<table>
+<caption align="BOTTOM"><strong>Figure 1:</strong>
+Intra-sentence cosine similarities in a subset of cluster
+  d1003t from DUC 2004.
+Source: Agence France Presse (AFP) Arabic Newswire (1998). Manually translated to English.</caption>
+<tbody><tr><td><img width="537" height="782" border="0" src="./Lexrank_files/img23.gif" alt="\begin{figure}\scriptsize\center
+\begin{tabular}{\vert c c l\vert}
+\hline
+SNo &amp; ...
+...01 &amp; 0.18 &amp; 0.03 &amp; 0.01 &amp; 0.17 &amp; 0.38 &amp; 0.12 &amp; 1.00
+\end{tabular}}
+\end{figure}"></td></tr>
+</tbody></table>
+</div>
+
+<p>
+
+</p><div align="CENTER"><a name="weighted-graph"></a><a name="620"></a>
+<table>
+<caption align="BOTTOM"><strong>Figure 2:</strong>
+Weighted cosine similarity graph for the cluster in Figure&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#cluster">1</a>.</caption>
+<tbody><tr><td><img width="580" height="510" align="BOTTOM" border="0" src="./Lexrank_files/img24.gif" alt="\includegraphics[scale=0.75]{dense3}"></td></tr>
+</tbody></table>
+</div>
+
+<p>
+
+</p><div align="CENTER"><a name="lpr-graph"></a><a name="621"></a>
+<table>
+<caption align="BOTTOM"><strong>Figure 3:</strong>
+Similarity graphs that correspond to thresholds 0.1, 0.2, and
+0.3, respectively, for the cluster
+  in Figure&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#cluster">1</a>.</caption>
+<tbody><tr><td><img width="383" height="341" align="BOTTOM" border="0" src="./Lexrank_files/img25.gif" alt="\includegraphics[scale=0.6]{lpr_example1.eps}">
+
+<p>
+<br>
+
+<br>
+
+</p><p>
+<img width="252" height="295" align="BOTTOM" border="0" src="./Lexrank_files/img26.gif" alt="\includegraphics[scale=0.6]{lpr_example2.eps}">
+
+</p><p>
+<br>
+
+<br>
+
+</p><p>
+<img width="272" height="134" align="BOTTOM" border="0" src="./Lexrank_files/img27.gif" alt="\includegraphics[scale=0.6]{lpr_example3.eps}">
+
+</p><p></p></td></tr>
+</tbody></table>
+</div>
+
+<p>
+<br></p><p></p>
+<div align="CENTER"><a name="623"></a>
+<table>
+<caption><strong>Table 1:</strong>
+Degree centrality scores for the graphs in Figure&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#lpr-graph">3</a>.
+  Sentence d4s1 is the most central
+  sentence for thresholds 0.1 and 0.2.</caption>
+<tbody><tr><td>
+<table cellpadding="3" border="1">
+<tbody><tr><td align="CENTER"><font size="-2">
+ID </font></td>
+<td align="CENTER"><font size="-2">  Degree (0.1) </font></td>
+<td align="CENTER"><font size="-2"> Degree (0.2) </font></td>
+<td align="CENTER"><font size="-2"> Degree (0.3)</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+
+d1s1</font></td>
+<td align="CENTER"><font size="-2">5</font></td>
+<td align="CENTER"><font size="-2">4</font></td>
+<td align="CENTER"><font size="-2">2</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d2s1</font></td>
+<td align="CENTER"><font size="-2">7</font></td>
+<td align="CENTER"><font size="-2">4</font></td>
+<td align="CENTER"><font size="-2">2</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d2s2</font></td>
+<td align="CENTER"><font size="-2">2</font></td>
+<td align="CENTER"><font size="-2">1</font></td>
+<td align="CENTER"><font size="-2">1</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d2s3</font></td>
+<td align="CENTER"><font size="-2">6</font></td>
+<td align="CENTER"><font size="-2">3</font></td>
+<td align="CENTER"><font size="-2">1</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d3s1</font></td>
+<td align="CENTER"><font size="-2">5</font></td>
+<td align="CENTER"><font size="-2">2</font></td>
+<td align="CENTER"><font size="-2">1</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d3s2</font></td>
+<td align="CENTER"><font size="-2">7</font></td>
+<td align="CENTER"><font size="-2">5</font></td>
+<td align="CENTER"><font size="-2">1</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d3s3</font></td>
+<td align="CENTER"><font size="-2">2</font></td>
+<td align="CENTER"><font size="-2">2</font></td>
+<td align="CENTER"><font size="-2">1</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d4s1</font></td>
+<td align="CENTER"><font size="-2">9</font></td>
+<td align="CENTER"><font size="-2">6</font></td>
+<td align="CENTER"><font size="-2">1</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d5s1</font></td>
+<td align="CENTER"><font size="-2">5</font></td>
+<td align="CENTER"><font size="-2">4</font></td>
+<td align="CENTER"><font size="-2">2</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d5s2</font></td>
+<td align="CENTER"><font size="-2">6</font></td>
+<td align="CENTER"><font size="-2">4</font></td>
+<td align="CENTER"><font size="-2">1</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d5s3</font></td>
+<td align="CENTER"><font size="-2">5</font></td>
+<td align="CENTER"><font size="-2">2</font></td>
+<td align="CENTER"><font size="-2">2
+</font></td>
+</tr>
+</tbody></table><font size="-2">
+
+<a name="degree-scores"></a></font></td></tr>
+</tbody></table>
+</div><p></p><br>
+
+<p>
+
+</p><h2><a name="SECTION00032000000000000000">
+3.2 Eigenvector Centrality and LexRank</a>
+</h2>
+When computing degree centrality, we have treated each edge
+as a <i>vote</i> to determine the overall centrality value
+of each node. This is a totally democratic method where
+each vote counts the same.
+However, in many types of social networks, not all
+of the relationships are considered equally important.
+As an example, consider a social
+network of people that are connected to each other
+with the friendship relation.
+The prestige of a person does not only depend on how many
+friends he has, but also depends on <i>who</i> his
+friends are.
+
+<p>
+The same idea can be applied to extractive summarization as well.
+Degree centrality may have a negative 
+effect in the quality of the summaries in some cases where 
+several unwanted sentences vote for each other and raise their
+centrality. As an extreme example, consider a noisy cluster where
+all the documents are related to each other, but only one
+of them is about a somewhat different topic. 
+Obviously, we would not want any of the sentences in the
+unrelated document to be included in a generic summary of the
+cluster. However, suppose that the
+unrelated document contains some sentences that are very
+prestigious considering only the votes in that document.
+These sentences will get artificially high 
+centrality scores by the local votes from a specific set of
+sentences.
+This situation can be avoided by considering where the votes come
+from and taking the centrality of the <i>voting</i> nodes into account
+in weighting each vote. 
+A straightforward way of formulating this idea is to consider every node
+having a centrality value and distributing this centrality to its
+neighbors.
+This formulation can be expressed by the equation
+<br>
+</p><div align="RIGHT">
+
+<!-- MATH
+ \begin{equation}
+p(u) = \sum_{v\in{}adj[u]}\frac{p(v)}{deg(v)}
+\end{equation}
+ -->
+<table width="100%" align="CENTER">
+<tbody><tr valign="MIDDLE"><td align="CENTER" nowrap=""><a name="pagerank1"></a><img width="160" height="57" border="0" src="./Lexrank_files/img28.gif" alt="\begin{displaymath}
+p(u) = \sum_{v\in{}adj[u]}\frac{p(v)}{deg(v)}
+\end{displaymath}"></td>
+<td width="10" align="RIGHT">
+(3)</td></tr>
+</tbody></table>
+<br clear="ALL"></div><p></p>
+where <img width="37" height="34" align="MIDDLE" border="0" src="./Lexrank_files/img29.gif" alt="$p(u)$"> is the centrality of node <img width="14" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img30.gif" alt="$u$">, <img width="49" height="34" align="MIDDLE" border="0" src="./Lexrank_files/img31.gif" alt="$adj[u]$"> 
+is the set of nodes that are adjacent to <img width="14" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img32.gif" alt="$u$">,
+and <img width="53" height="34" align="MIDDLE" border="0" src="./Lexrank_files/img33.gif" alt="$deg(v)$"> is the degree of the node <img width="13" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img34.gif" alt="$v$">.
+Equivalently, we can write Equation&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#pagerank1">3</a> in the matrix
+notation as
+<br>
+<div align="RIGHT">
+
+<!-- MATH
+ \begin{equation}
+\mathbf{p} = \mathbf{B}^\mathrm{T}\mathbf{p}
+\end{equation}
+ -->
+<table width="100%" align="CENTER">
+<tbody><tr valign="MIDDLE"><td align="CENTER" nowrap=""><a name="pagerank2"></a><img width="70" height="30" border="0" src="./Lexrank_files/img35.gif" alt="\begin{displaymath}
+\mathbf{p} = \mathbf{B}^\mathrm{T}\mathbf{p}
+\end{displaymath}"></td>
+<td width="10" align="RIGHT">
+(4)</td></tr>
+</tbody></table>
+<br clear="ALL"></div><p></p>
+or
+<br>
+<div align="RIGHT">
+
+<!-- MATH
+ \begin{equation}
+\mathbf{p}^\mathrm{T}\mathbf{B} = \mathbf{p}^\mathrm{T}
+\end{equation}
+ -->
+<table width="100%" align="CENTER">
+<tbody><tr valign="MIDDLE"><td align="CENTER" nowrap=""><a name="pagerank3"></a><img width="80" height="30" border="0" src="./Lexrank_files/img36.gif" alt="\begin{displaymath}
+\mathbf{p}^\mathrm{T}\mathbf{B} = \mathbf{p}^\mathrm{T}
+\end{displaymath}"></td>
+<td width="10" align="RIGHT">
+(5)</td></tr>
+</tbody></table>
+<br clear="ALL"></div><p></p>
+where the matrix <img width="19" height="15" align="BOTTOM" border="0" src="./Lexrank_files/img37.gif" alt="$\mathbf{B}$"> is obtained from the adjacency
+matrix of the similarity graph by dividing each element
+by the corresponding row sum:
+<br>
+<div align="RIGHT">
+
+<!-- MATH
+ \begin{equation}
+\mathbf{B}(i,j) = \frac{\mathbf{A}(i,j)}{\sum_{k}\mathbf{A}(i,k)}
+\end{equation}
+ -->
+<table width="100%" align="CENTER">
+<tbody><tr valign="MIDDLE"><td align="CENTER" nowrap=""><img width="155" height="48" border="0" src="./Lexrank_files/img38.gif" alt="\begin{displaymath}
+\mathbf{B}(i,j) = \frac{\mathbf{A}(i,j)}{\sum_{k}\mathbf{A}(i,k)}
+\end{displaymath}"></td>
+<td width="10" align="RIGHT">
+(6)</td></tr>
+</tbody></table>
+<br clear="ALL"></div><p></p>
+Note that a row sum is equal to the degree of the corresponding node.
+Since every sentence is similar at least to itself, all row sums
+are nonzero. 
+Equation&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#pagerank3">5</a> states that <!-- MATH
+ $\mathbf{p}^\mathrm{T}$
+ -->
+<img width="26" height="38" align="MIDDLE" border="0" src="./Lexrank_files/img39.gif" alt="$\mathbf{p}^\mathrm{T}$"> is the left
+eigenvector of the matrix <img width="19" height="15" align="BOTTOM" border="0" src="./Lexrank_files/img40.gif" alt="$\mathbf{B}$"> with the corresponding
+eigenvalue of <img width="13" height="15" align="BOTTOM" border="0" src="./Lexrank_files/img41.gif" alt="$1$">.
+To guarantee that such an eigenvector exists and can be 
+uniquely identified and computed,
+we need some mathematical foundations.
+
+<p>
+A <i>stochastic</i> matrix, <img width="20" height="15" align="BOTTOM" border="0" src="./Lexrank_files/img42.gif" alt="$\mathbf{X}$">, is the transition matrix 
+of a Markov chain. 
+An element <!-- MATH
+ $\mathbf{X}(i,j)$
+ -->
+<img width="55" height="34" align="MIDDLE" border="0" src="./Lexrank_files/img43.gif" alt="$\mathbf{X}(i,j)$"> of a stochastic matrix
+specifies the transition probability from state <img width="10" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img44.gif" alt="$i$"> to state <img width="13" height="31" align="MIDDLE" border="0" src="./Lexrank_files/img45.gif" alt="$j$">
+in the corresponding Markov chain. By the probability axioms,
+all rows of a stochastic matrix should add up to 1.
+<!-- MATH
+ $\mathbf{X^n}(i,j)$
+ -->
+<img width="65" height="34" align="MIDDLE" border="0" src="./Lexrank_files/img46.gif" alt="$\mathbf{X^n}(i,j)$"> gives the probability of reaching from state <img width="10" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img47.gif" alt="$i$">
+to state <img width="13" height="31" align="MIDDLE" border="0" src="./Lexrank_files/img48.gif" alt="$j$"> in <img width="15" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img49.gif" alt="$n$"> transitions.
+A Markov chain with the stochastic matrix <img width="20" height="15" align="BOTTOM" border="0" src="./Lexrank_files/img50.gif" alt="$\mathbf{X}$"> 
+converges to a stationary distribution if
+<br>
+</p><div align="RIGHT">
+
+<!-- MATH
+ \begin{equation}
+\lim_{n\rightarrow{}\infty}\mathbf{X^n} = \mathbf{1}^\mathrm{T}\mathbf{r}
+\end{equation}
+ -->
+<table width="100%" align="CENTER">
+<tbody><tr valign="MIDDLE"><td align="CENTER" nowrap=""><img width="114" height="38" border="0" src="./Lexrank_files/img51.gif" alt="\begin{displaymath}
+\lim_{n\rightarrow{}\infty}\mathbf{X^n} = \mathbf{1}^\mathrm{T}\mathbf{r}
+\end{displaymath}"></td>
+<td width="10" align="RIGHT">
+(7)</td></tr>
+</tbody></table>
+<br clear="ALL"></div><p></p>
+where <!-- MATH
+ $\mathbf{1}=(1,1,...,1)$
+ -->
+<img width="115" height="34" align="MIDDLE" border="0" src="./Lexrank_files/img52.gif" alt="$\mathbf{1}=(1,1,...,1)$">, and the vector
+<img width="13" height="15" align="BOTTOM" border="0" src="./Lexrank_files/img53.gif" alt="$\mathbf{r}$"> is called the stationary distribution of the 
+Markov chain.
+An intuitive interpretation of the stationary distribution can
+be understood by the concept of a random walk.
+Each element of the
+vector <img width="13" height="15" align="BOTTOM" border="0" src="./Lexrank_files/img54.gif" alt="$\mathbf{r}$"> gives the asymptotic probability
+of ending up in the corresponding state in the long run regardless
+of the starting state.
+A Markov chain is <i>irreducible</i> if any state is reachable from
+any other state, i.e. for all <img width="26" height="31" align="MIDDLE" border="0" src="./Lexrank_files/img55.gif" alt="$i,j$"> there exists an <img width="15" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img56.gif" alt="$n$"> such that
+<!-- MATH
+ $\mathbf{X^n}(i,j)\neq{}0$
+ -->
+<img width="96" height="34" align="MIDDLE" border="0" src="./Lexrank_files/img57.gif" alt="$\mathbf{X^n}(i,j)\neq{}0$">. A Markov chain is <i>aperiodic</i>
+if for all <img width="10" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img58.gif" alt="$i$">, <!-- MATH
+ $gcd\{n:X^n(i,i) > 0\}=1$
+ -->
+<img width="194" height="34" align="MIDDLE" border="0" src="./Lexrank_files/img59.gif" alt="$gcd\{n:X^n(i,i) &gt; 0\}=1$">.
+By the Perron-Frobenius theorem [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Seneta:81">Sen81</a>], an irreducible and
+aperiodic Markov chain is guaranteed to converge to a
+unique stationary distribution.
+If a Markov chain has reducible or periodic components, 
+a random walker may get stuck in these components and never
+visit the other parts of the graph.
+
+<p>
+Since the similarity matrix <img width="19" height="15" align="BOTTOM" border="0" src="./Lexrank_files/img60.gif" alt="$\mathbf{B}$"> in Equation&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#pagerank2">4</a>
+satisfies the properties of a stochastic matrix, we can treat
+it as a Markov chain.
+The centrality vector <img width="16" height="30" align="MIDDLE" border="0" src="./Lexrank_files/img61.gif" alt="$\mathbf{p}$"> corresponds to the stationary distribution
+of <img width="19" height="15" align="BOTTOM" border="0" src="./Lexrank_files/img62.gif" alt="$\mathbf{B}$">. 
+However, we need to make sure that the
+similarity matrix is always irreducible and aperiodic.
+To solve this problem,
+Page et al. [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#pagerank">PBMW98</a>] suggest reserving some low
+probability for jumping to any node in the graph.
+This way the random walker can ``escape" from periodic or
+disconnected components, which makes the graph irreducible and
+aperiodic.
+If we assign a uniform probability for jumping to any
+node in the graph, we are left with the following modified version of
+Equation&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#pagerank1">3</a>, which is known as PageRank,
+<br>
+</p><div align="RIGHT">
+
+<!-- MATH
+ \begin{equation}
+p(u) = \frac{d}{N}+{(1-d)}\sum_{v\in{}adj[u]}\frac{p(v)}{deg(v)}
+\end{equation}
+ -->
+<table width="100%" align="CENTER">
+<tbody><tr valign="MIDDLE"><td align="CENTER" nowrap=""><a name="pagerank4"></a><img width="258" height="57" border="0" src="./Lexrank_files/img63.gif" alt="\begin{displaymath}
+p(u) = \frac{d}{N}+{(1-d)}\sum_{v\in{}adj[u]}\frac{p(v)}{deg(v)}
+\end{displaymath}"></td>
+<td width="10" align="RIGHT">
+(8)</td></tr>
+</tbody></table>
+<br clear="ALL"></div><p></p>
+where <img width="20" height="15" align="BOTTOM" border="0" src="./Lexrank_files/img64.gif" alt="$N$"> is the total number of nodes in the graph, and <img width="13" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img65.gif" alt="$d$"> is
+a ``damping factor", which is typically chosen in the interval <img width="66" height="34" align="MIDDLE" border="0" src="./Lexrank_files/img66.gif" alt="$[0.1,0.2]$">
+[<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#brin98anatomy">BP98</a>].
+Equation&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#pagerank4">8</a> can be written in the matrix
+form as
+<br>
+<div align="RIGHT">
+
+<!-- MATH
+ \begin{equation}
+\mathbf{p} = [d\mathbf{U}+(1-d)\mathbf{B}]^\mathrm{T}\mathbf{p}
+\end{equation}
+ -->
+<table width="100%" align="CENTER">
+<tbody><tr valign="MIDDLE"><td align="CENTER" nowrap=""><a name="pagerank5"></a><img width="178" height="31" border="0" src="./Lexrank_files/img67.gif" alt="\begin{displaymath}
+\mathbf{p} = [d\mathbf{U}+(1-d)\mathbf{B}]^\mathrm{T}\mathbf{p}
+\end{displaymath}"></td>
+<td width="10" align="RIGHT">
+(9)</td></tr>
+</tbody></table>
+<br clear="ALL"></div><p></p>
+where <img width="20" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img68.gif" alt="$\mathbf{U}$"> is a square matrix with all elements being equal
+to <img width="37" height="34" align="MIDDLE" border="0" src="./Lexrank_files/img69.gif" alt="$1/N$">.
+The transition kernel <!-- MATH
+ $[d\mathbf{U}+(1-d)\mathbf{B}]$
+ -->
+<img width="127" height="34" align="MIDDLE" border="0" src="./Lexrank_files/img70.gif" alt="$[d\mathbf{U}+(1-d)\mathbf{B}]$">
+of the resulting Markov chain is a mixture of two kernels
+<img width="20" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img71.gif" alt="$\mathbf{U}$"> and <img width="19" height="15" align="BOTTOM" border="0" src="./Lexrank_files/img72.gif" alt="$\mathbf{B}$">.
+A random walker on this Markov chain chooses one of
+the adjacent states of the current state with probability
+<img width="44" height="32" align="MIDDLE" border="0" src="./Lexrank_files/img73.gif" alt="$1-d$">, or jumps to any state in the graph, including the current state,
+with probability <img width="13" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img74.gif" alt="$d$">.
+The PageRank formula was first proposed for computing web page prestige,
+and still serves as the underlying mechanism behind the Google
+search engine.
+
+<p>
+The convergence property of Markov chains also provides us with
+a simple iterative algorithm, called power method,
+to compute the stationary distribution (Algorithm&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#powermethod">2</a>).
+The algorithm starts with a uniform distribution.
+At each iteration, the eigenvector is updated by multiplying with
+the transpose of the stochastic matrix.
+Since the Markov chain is irreducible and aperiodic, the algorithm
+is guaranteed to terminate.
+
+</p><p>
+
+<br>
+<a name="powermethod"></a><img width="543" height="199" align="BOTTOM" border="0" src="./Lexrank_files/img75.gif" alt="\begin{algorithm}
+% latex2html id marker 427{\scriptsize\SetKwInOut{Input}{inp...
+...hod for computing the stationary distribution of a Markov chain.}\end{algorithm}">
+<br>
+
+</p><p>
+Unlike the original
+PageRank method, the similarity graph for sentences
+is undirected since cosine similarity is
+a symmetric relation.
+However, this does not make any
+difference in the computation of the stationary distribution.
+We call this new measure of sentence similarity 
+<i>lexical PageRank</i>, or <i>LexRank</i>.
+Algorithm&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#alg-lpr">3</a> summarizes how to compute LexRank scores
+for a given set of sentences. 
+Note that Degree centrality scores are also computed (in the <img width="61" height="32" align="MIDDLE" border="0" src="./Lexrank_files/img76.gif" alt="$Degree$">
+array) as a side
+product of the algorithm.
+Table&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#lpr-scores">2</a> shows the LexRank scores
+for the graphs in Figure&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#lpr-graph">3</a> setting the damping factor
+to <img width="35" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img77.gif" alt="$0.85$">. 
+For comparison, Centroid score for each sentence is also
+shown in the table. 
+All the numbers are normalized so that the highest ranked 
+sentence gets the score <img width="13" height="15" align="BOTTOM" border="0" src="./Lexrank_files/img78.gif" alt="$1$">. 
+It is obvious from the figures that
+threshold choice affects the LexRank rankings of some
+sentences.
+
+</p><p>
+<br>
+<a name="alg-lpr"></a><img width="514" height="367" align="BOTTOM" border="0" src="./Lexrank_files/img79.gif" alt="\begin{algorithm}
+% latex2html id marker 457{\scriptsize\SetKwInOut{Input}{inp...
+...\epsilon$}\;
+\Return{$L$}\;
+}
+\caption{Computing LexRank scores.}\end{algorithm}">
+<br>
+
+</p><p>
+<br></p><p></p>
+<div align="CENTER"><a name="636"></a>
+<table>
+<caption><strong>Table 2:</strong>
+LexRank scores for the graphs in Figure&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#lpr-graph">3</a>.
+  All the values are normalized so that the largest value
+  of each column is 1.
+  Sentence d4s1 is the most central
+  page for thresholds 0.1 and 0.2.</caption>
+<tbody><tr><td>
+<table cellpadding="3" border="1">
+<tbody><tr><td align="CENTER"><font size="-2">
+ID </font></td>
+<td align="CENTER"><font size="-2">  LR (0.1) </font></td>
+<td align="CENTER"><font size="-2"> LR (0.2) </font></td>
+<td align="CENTER"><font size="-2"> LR (0.3) </font></td>
+<td align="CENTER"><font size="-2">  Centroid</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+
+d1s1</font></td>
+<td align="CENTER"><font size="-2">0.6007</font></td>
+<td align="CENTER"><font size="-2">0.6944</font></td>
+<td align="CENTER"><font size="-2">1.0000</font></td>
+<td align="CENTER"><font size="-2">0.7209</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d2s1</font></td>
+<td align="CENTER"><font size="-2">0.8466</font></td>
+<td align="CENTER"><font size="-2">0.7317</font></td>
+<td align="CENTER"><font size="-2">1.0000</font></td>
+<td align="CENTER"><font size="-2">0.7249</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d2s2</font></td>
+<td align="CENTER"><font size="-2">0.3491</font></td>
+<td align="CENTER"><font size="-2">0.6773</font></td>
+<td align="CENTER"><font size="-2">1.0000</font></td>
+<td align="CENTER"><font size="-2">0.1356</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d2s3</font></td>
+<td align="CENTER"><font size="-2">0.7520</font></td>
+<td align="CENTER"><font size="-2">0.6550</font></td>
+<td align="CENTER"><font size="-2">1.0000</font></td>
+<td align="CENTER"><font size="-2">0.5694</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d3s1</font></td>
+<td align="CENTER"><font size="-2">0.5907</font></td>
+<td align="CENTER"><font size="-2">0.4344</font></td>
+<td align="CENTER"><font size="-2">1.0000</font></td>
+<td align="CENTER"><font size="-2">0.6331</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d3s2</font></td>
+<td align="CENTER"><font size="-2">0.7993</font></td>
+<td align="CENTER"><font size="-2">0.8718</font></td>
+<td align="CENTER"><font size="-2">1.0000</font></td>
+<td align="CENTER"><font size="-2">0.7972</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d3s3</font></td>
+<td align="CENTER"><font size="-2">0.3548</font></td>
+<td align="CENTER"><font size="-2">0.4993</font></td>
+<td align="CENTER"><font size="-2">1.0000</font></td>
+<td align="CENTER"><font size="-2">0.3328</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d4s1</font></td>
+<td align="CENTER"><font size="-2">1.0000</font></td>
+<td align="CENTER"><font size="-2">1.0000</font></td>
+<td align="CENTER"><font size="-2">1.0000</font></td>
+<td align="CENTER"><font size="-2">0.9414</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d5s1</font></td>
+<td align="CENTER"><font size="-2">0.5921</font></td>
+<td align="CENTER"><font size="-2">0.7399</font></td>
+<td align="CENTER"><font size="-2">1.0000</font></td>
+<td align="CENTER"><font size="-2">0.9580</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d5s2</font></td>
+<td align="CENTER"><font size="-2">0.6910</font></td>
+<td align="CENTER"><font size="-2">0.6967</font></td>
+<td align="CENTER"><font size="-2">1.0000</font></td>
+<td align="CENTER"><font size="-2">1.0000</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-2"> 
+d5s3</font></td>
+<td align="CENTER"><font size="-2">0.5921</font></td>
+<td align="CENTER"><font size="-2">0.4501</font></td>
+<td align="CENTER"><font size="-2">1.0000</font></td>
+<td align="CENTER"><font size="-2">0.7902
+</font></td>
+</tr>
+</tbody></table><font size="-2">
+
+<a name="lpr-scores"></a></font></td></tr>
+</tbody></table>
+</div><p></p><br>
+
+<p>
+
+</p><h2><a name="SECTION00033000000000000000">
+3.3 Continuous LexRank</a>
+</h2>
+The similarity graphs we have constructed to compute Degree centrality 
+and LexRank are unweighted.
+This is due to the binary discretization we perform on the
+cosine matrix using an appropriate threshold. As in all
+discretization operations, this means an information loss.
+One improvement over LexRank can be obtained by
+making use of the <i>strength</i> of the similarity
+links. 
+If we use the cosine values directly to construct the similarity
+graph, we usually 
+have a much denser but weighted graph (Figure&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#weighted-graph">2</a>).
+We can normalize the row sums of the corresponding transition
+matrix so that we have a stochastic matrix.
+The resultant equation is a modified version of LexRank for
+weighted graphs:
+<br>
+<div align="RIGHT">
+
+<!-- MATH
+ \begin{equation}
+p(u) = \frac{d}{N}+{(1-d)}\sum_{v\in{}adj[u]}\frac{\textrm{idf-modified-cosine}(u,v)}{\sum_{z\in{}adj[v]}\textrm{idf-modified-cosine}(z,v)}p(v)
+\end{equation}
+ -->
+<table width="100%" align="CENTER">
+<tbody><tr valign="MIDDLE"><td align="CENTER" nowrap=""><a name="lpr-equation2"></a><img width="491" height="57" border="0" src="./Lexrank_files/img80.gif" alt="\begin{displaymath}
+p(u) = \frac{d}{N}+{(1-d)}\sum_{v\in{}adj[u]}\frac{\textrm{i...
+...,v)}{\sum_{z\in{}adj[v]}\textrm{idf-modified-cosine}(z,v)}p(v)
+\end{displaymath}"></td>
+<td width="10" align="RIGHT">
+(10)</td></tr>
+</tbody></table>
+<br clear="ALL"></div><p></p>
+This way, while computing LexRank for a sentence,
+we multiply the LexRank values of the linking sentences by 
+the weights of the links.
+Weights are normalized by the row sums, and the damping factor <img width="13" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img81.gif" alt="$d$"> is added
+for the convergence of the method.
+
+<p>
+
+</p><h2><a name="SECTION00034000000000000000">
+3.4 Centrality vs. Centroid</a>
+</h2>
+Graph-based centrality has several advantages over Centroid. 
+First of all,
+it accounts for information subsumption among sentences.
+If the information content of a sentence subsumes another sentence
+in a cluster, it is 
+naturally preferred to include the one that contains more
+information in the summary.
+The degree of a node in the cosine similarity graph is an indication
+of how much common information the sentence has with other
+sentences. Sentence d4s1 in Figure&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#cluster">1</a> gets the
+highest score since it almost subsumes the information in the first two
+sentences of the cluster and has some common information with others. 
+Another advantage of our proposed approach is that
+it prevents unnaturally high idf scores from boosting up the score
+of a sentence that is unrelated to the topic. Although the frequency
+of the words are taken into account while computing the Centroid score,
+a sentence that contains many rare words with high idf values
+may get a high Centroid score even if the words do not occur
+elsewhere in the cluster.
+
+<p>
+
+</p><h1><a name="SECTION00040000000000000000">
+4 Experimental Setup</a>
+</h1>
+In this section, we describe the data set, the evaluation metric
+and the summarization system we used in our experiments.
+
+<h2><a name="SECTION00041000000000000000">
+4.1 Data Set and Evaluation Method</a>
+</h2>
+We used DUC 2003 and 2004 data sets in our experiments.
+Task 2 of both DUC 2003 and 2004 involve generic summarization
+of news documents clusters.
+There are a total of 30 clusters in DUC 2003 and 50 clusters in DUC 2004.
+In addition to these two tasks, we used two more data sets from Task 4 of
+DUC 2004, which involves cross-lingual generic summarization. First set
+(Task 4a)
+is composed of Arabic-to-English machine translations of 24 news clusters.
+Second set (Task 4b)
+is the human translations of the same clusters. All data sets
+are in English.
+
+<p>
+For evaluation, we used
+the new automatic summary evaluation metric, 
+ROUGE<a name="tex2html9" href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/footnode.html#foot640"><sup>3</sup></a>, which
+was used for the first time in DUC 2004.
+ROUGE is a recall-based metric
+for fixed-length summaries which is based on n-gram co-occurrence.
+It reports separate scores for 1, 2, 3, and 4-gram matching between
+the model summaries and the summary to be evaluated.
+Among these different
+scores,
+unigram-based
+ROUGE score (ROUGE-1) has been shown to agree with human judgements
+most [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#rouge-naacl">LH03</a>].
+
+</p><p>
+There are 10 different human judges for DUC 2003 Task 2; 8 for 
+DUC 2004 Task 2; and 4 for DUC 2004 Task 4.
+However, a subset of exactly 4 different human judges produced model 
+summaries for any given cluster.
+ROUGE requires a limit on the length of the summaries to be able to make
+a fair evaluation.
+To stick with the DUC 2004 specifications and to be
+able to compare our system with human summaries and as well as with
+other DUC participants, we produced
+665-byte summaries for each cluster and computed ROUGE scores against human
+summaries. 
+
+</p><p>
+
+</p><h2><a name="SECTION00042000000000000000">
+4.2 MEAD Summarization Toolkit</a>
+</h2>
+We implemented our methods inside the
+MEAD<a name="tex2html11" href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/footnode.html#foot641"><sup>4</sup></a>summarization system [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Radev_SPMamp_al.01h">RBGZ01</a>]. MEAD 
+is a publicly available toolkit for extractive multi-document
+summarization. Although it comes as a centroid-based
+summarization system by default, its feature set can be 
+extended to implement any other method.
+
+<p>
+The MEAD summarizer consists of three components. 
+During the first step, <i>the feature extraction</i>, each
+sentence in the input document (or cluster of documents) is converted
+into a feature vector using the user-defined features.
+Second, the feature vector is converted
+to a scalar value using the <i>combiner</i>.
+Combiner outputs a linear combination of the features
+by using the predefined feature weights. 
+At the last stage known as
+the <i>reranker</i>, the scores for sentences included in related pairs
+are adjusted upwards or downwards based on the type of relation
+between the sentences in the pair. Reranker penalizes the sentences
+that are similar to the sentences already included in the summary so 
+that a better information coverage is achieved.
+
+</p><p>
+Three default features that come with the MEAD distribution are
+Centroid, Position and Length. Position is the normalized value
+of the position of a sentence in the document such that the first
+sentence of a document gets the maximum Position value of 1, and
+the last sentence gets the value 0. Length is not a real feature
+score, but
+a cutoff value that ignores sentences shorter than the given
+threshold. Several rerankers are implemented in MEAD, including
+one based on Maximal Marginal Relevance (MMR) [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#carbonell_SPMamp_goldstein98">CG98</a>]
+and the default reranker of the system based on
+Cross-Sentence Informational Subsumption (CSIS) [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Radev00">Rad00</a>]. All
+of our experiments shown in Section&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#sec:results">5</a> use the CSIS
+reranker.
+
+</p><p>
+A MEAD policy is a combination of three components: (a) the command
+lines for all features, (b) the formula for converting the feature
+vector to a scalar, and (c) the command line for the reranker. A
+sample policy might be the one shown in
+Figure&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#fig:mead-policy">4</a>. This example indicates the three 
+default MEAD features 
+(Centroid, Position, LengthCutoff),
+and our new LexRank feature used in our experiments.
+Our LexRank implementation requires the cosine similarity
+threshold, <img width="27" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img82.gif" alt="$0.2$"> in the example, as an argument.
+Each number next to a feature name shows the relative weight
+of that feature (except for LengthCutoff where the number 9 indicates
+the threshold for selecting a sentence based on the number of
+the words in the sentence).
+The reranker in the example is a word-based MMR 
+reranker with a cosine
+similarity threshold, <img width="27" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img83.gif" alt="$0.5$">.
+Finally ``enidf" specifies the idf database file, which is
+a precomputed list of idf's for English words.
+
+</p><p>
+
+</p><div align="CENTER"><a name="fig:mead-policy"></a><a name="523"></a>
+<table>
+<caption align="BOTTOM"><strong>Figure 4:</strong>
+A sample MEAD policy.</caption>
+<tbody><tr><td><img width="323" height="59" border="0" src="./Lexrank_files/img84.gif" alt="\begin{figure}\center
+\scriptsize\begin{boxedverbatim}feature LexRank LexRank....
+...Rank 1
+mmr-reranker-word.pl 0.5 MEAD-cosine enidf\end{boxedverbatim}\end{figure}"></td></tr>
+</tbody></table>
+</div>
+
+<p>
+
+</p><h1><a name="SECTION00050000000000000000"></a>
+<a name="sec:results"></a><br>
+5 Results and Discussion
+</h1>
+
+<p>
+The following sections show the results of the experiments we have
+performed on the official DUC data sets with different implementations
+of similarity graph based centrality.  We have implemented Degree
+centrality, LexRank with threshold and continuous LexRank as separate
+features in MEAD.  All the feature values are normalized so that the
+sentence that has the highest value gets the score <img width="13" height="15" align="BOTTOM" border="0" src="./Lexrank_files/img85.gif" alt="$1$">, and the
+sentence with the lowest value gets the score <img width="13" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img86.gif" alt="$0$">.  In all of the
+runs, we have used Length and Position features of MEAD as supporting
+heuristics in addition to our centrality features. Length cutoff value
+is set to 9, i.e. all the sentences that have less than 9 words are
+discarded.  The weight of the Position feature is fixed to <img width="13" height="15" align="BOTTOM" border="0" src="./Lexrank_files/img87.gif" alt="$1$"> in all
+runs.  Other than these two heuristic features, we used each
+centrality feature alone without combining with other centrality
+methods to make a better comparison with each other. For each
+centrality feature we are experimenting with, we have run 8 different
+MEAD features by setting the weight of the corresponding feature to
+<!-- MATH
+ ${0.5,1.0,1.5,2.0,2.5,3.0,5.0,10.0}$
+ -->
+<img width="246" height="30" align="MIDDLE" border="0" src="./Lexrank_files/img88.gif" alt="${0.5,1.0,1.5,2.0,2.5,3.0,5.0,10.0}$">, respectively.
+
+</p><p>
+
+</p><h2><a name="SECTION00051000000000000000">
+5.1 Effect of Threshold on Degree and LexRank Centrality</a>
+</h2>
+We have demonstrated that very high thresholds may lose almost all of
+the information in a similarity matrix (Figure&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#lpr-graph">3</a>).  To
+support our claim, we have run Degree and LexRank centrality with
+different thresholds for our data sets.  Figure&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#threshold">5</a> shows
+the effect of threshold for Degree and LexRank centrality on DUC 2004
+Task 2 data.  We have experimented with four different thresholds:
+<!-- MATH
+ $0.1, 0.2, 0.3,$
+ -->
+<img width="92" height="30" align="MIDDLE" border="0" src="./Lexrank_files/img89.gif" alt="$0.1, 0.2, 0.3,$"> and <img width="27" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img90.gif" alt="$0.4$">.  Eight different data points shown for
+each threshold correspond to the runs of the same feature with eight
+different weights as we have discussed above.  The mean value of the
+eight different experiments is shown as a horizontal line.  It is
+apparent in the figures that the lowest threshold, <img width="27" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img91.gif" alt="$0.1$">, produces the
+best summaries.  This means that the information loss in higher
+thresholds is high enough to result in worse ROUGE scores. The loss in
+ROUGE scores as we move from threshold <img width="27" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img92.gif" alt="$0.1$"> to <img width="27" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img93.gif" alt="$0.2$"> is more
+significant in Degree centrality.
+
+<p>
+This effect of threshold is an indication
+that our new centrality methods actually <i>work</i> for extractive 
+summarization.
+The higher the threshold, the less informative, or even misleading,
+similarity graphs we must have. On the extreme point where we have
+a very high threshold, we would have no edges in the graph so that
+Degree or LexRank centrality would be of no use.
+
+</p><p>
+
+</p><div align="CENTER"><a name="threshold"></a><a name="539"></a>
+<table>
+<caption align="BOTTOM"><strong>Figure 5:</strong>
+ROUGE-1 scores for (a) Degree centrality
+and (b) LexRank centrality  with different thresholds
+on DUC 2004 Task 2 data.</caption>
+<tbody><tr><td><table cellpadding="3" align="CENTER">
+<tbody><tr><td align="CENTER"><img width="324" height="246" align="BOTTOM" border="0" src="./Lexrank_files/img94.gif" alt="\includegraphics[scale=0.4]{degreet2.eps}"></td>
+<td align="CENTER"><img width="324" height="246" align="BOTTOM" border="0" src="./Lexrank_files/img95.gif" alt="\includegraphics[scale=0.4]{lprt2.eps}"></td>
+</tr>
+<tr><td align="CENTER">(a)</td>
+<td align="CENTER">(b)</td>
+</tr>
+</tbody></table></td></tr>
+</tbody></table>
+</div>
+
+<p>
+
+</p><h2><a name="SECTION00052000000000000000">
+5.2 Comparison of Centrality Methods</a>
+</h2>
+Table&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#results">3</a> shows the ROUGE scores for our
+experiments on DUC 2003 Task 2, DUC 2004 Task 2, DUC 2004 Task 4a, and
+DUC 2004 Task 4b, respectively. 
+We show the minimum, the maximum,
+and the average ROUGE-1 scores for eight experiments we have run
+for each centrality method corresponding to eight different 
+feature weights we have mentioned in Section&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#sec:results">5</a>.
+We include Degree and LexRank
+experiments only with threshold <img width="27" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img96.gif" alt="$0.1$">, the best one we have observed.
+We also include two baselines for each data set.
+The first baseline we have used is extracting random sentences from
+the cluster. 
+We have performed five random runs for each
+data set.
+The results in the tables are for the median runs.
+The second baseline,
+shown as `lead-based' in the tables, is using
+only the Position feature without any centrality method. This is
+tantamount to producing lead-based summaries, which is a widely used
+and very challenging baseline in the text summarization community
+[<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#brandow_SPMamp_al.95">BMR95</a>].
+
+<p>
+The top scores we have got in all data sets come from our new methods.
+All of our three new methods (Degree, LexRank with threshold, and
+continuous LexRank) perform significantly better than the baselines in
+all data sets.  They also perform better than centroid-based summaries
+except for the DUC 2003 data set where the difference between Centroid
+and the others is not obvious.  <img width="27" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img97.gif" alt="$0.1$"> seems to be an appropriate
+threshold such that the results seem as successful as using continuous
+LexRank.  It is also hard to say that Degree and LexRank are
+significantly different from each other. This is an indication that
+Degree may already be a good enough measure to assess the centrality
+of a node in the similarity graph.  Considering the relatively low
+complexity of degree centrality, it still serves as a plausible
+alternative when one needs a simple implementation.  Computation of
+Degree can be done on the fly as a side product of LexRank just before
+the power method is applied on the similarity graph.
+
+</p><p>
+To have an idea of the relative success of our methods among other
+summarization systems, we have compared our ROUGE scores with other
+participants' scores in the same DUC data
+sets. Table&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#duc03-official">4</a> and Table&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#duc04-official">5</a> show
+the official ROUGE-1 scores for top five participants and human
+summarizers on DUC 2003 and 2004 data, respectively.  Most of the
+LexRank scores we got are better than the second best system in DUC
+2003 and worse than the best system.  Best few scores for each method
+are always statistically indistinguishable from the best system in the
+official evaluations considering the 95% confidence interval. On all
+three DUC 2004 data sets, we achieved a better score than the best
+participant in at least one of the policies we tried. On the DUC 2003
+data, we achieved several scores that are between the best and the
+second best system.
+
+</p><p>
+<br></p><p></p>
+<div align="CENTER"><a name="604"></a>
+<table>
+<caption><strong>Table 3:</strong>
+ROUGE-1 scores for different MEAD policies on
+DUC 2003 and 2004 data.</caption>
+<tbody><tr><td><table cellpadding="3">
+<tbody><tr><td align="LEFT"><table cellpadding="3" border="1">
+<tbody><tr><td></td>
+<td align="CENTER" colspan="3"><font size="-1">2003 Task2</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+</font></td>
+<td align="CENTER"><font size="-1">min</font></td>
+<td align="CENTER"><font size="-1">max</font></td>
+<td align="CENTER"><font size="-1">average</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Centroid
+</font></td>
+<td align="CENTER"><font size="-1">0.3523</font></td>
+<td align="CENTER"><font size="-1">0.3713</font></td>
+<td align="CENTER"><font size="-1">0.3624</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Degree (t=0.1)
+</font></td>
+<td align="CENTER"><font size="-1">0.3566</font></td>
+<td align="CENTER"><font size="-1">0.3640</font></td>
+<td align="CENTER"><font size="-1">0.3595</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+LexRank (t=0.1)
+</font></td>
+<td align="CENTER"><font size="-1">0.3610</font></td>
+<td align="CENTER"><font size="-1">0.3726</font></td>
+<td align="CENTER"><font size="-1">0.3666</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Cont. LexRank
+</font></td>
+<td align="CENTER"><font size="-1">0.3594</font></td>
+<td align="CENTER"><font size="-1">0.3700</font></td>
+<td align="CENTER"><font size="-1">0.3646</font></td>
+</tr>
+</tbody></table></td>
+<td align="LEFT"><table cellpadding="3" border="1">
+<tbody><tr><td></td>
+<td align="CENTER" colspan="3"><font size="-1">2004 Task2</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+</font></td>
+<td align="CENTER"><font size="-1">min</font></td>
+<td align="CENTER"><font size="-1">max</font></td>
+<td align="CENTER"><font size="-1">average</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Centroid
+</font></td>
+<td align="CENTER"><font size="-1">0.3580</font></td>
+<td align="CENTER"><font size="-1">0.3767</font></td>
+<td align="CENTER"><font size="-1">0.3670</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Degree (t=0.1)
+</font></td>
+<td align="CENTER"><font size="-1">0.3590</font></td>
+<td align="CENTER"><font size="-1">0.3830</font></td>
+<td align="CENTER"><font size="-1">0.3707</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+LexRank (t=0.1)
+</font></td>
+<td align="CENTER"><font size="-1">0.3646</font></td>
+<td align="CENTER"><font size="-1">0.3808</font></td>
+<td align="CENTER"><font size="-1">0.3736</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Cont. LexRank
+</font></td>
+<td align="CENTER"><font size="-1">0.3617</font></td>
+<td align="CENTER"><font size="-1">0.3826</font></td>
+<td align="CENTER"><font size="-1">0.3758</font></td>
+</tr>
+</tbody></table></td>
+</tr>
+<tr><td align="LEFT"><font size="-1"> 
+
+</font><table cellpadding="3">
+<tbody><tr><td align="LEFT"><font size="-1">
+baselines: </font></td>
+<td align="RIGHT"><font size="-1">random:</font></td>
+<td align="LEFT"><font size="-1"> 0.3261</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-1"> 
+</font></td>
+<td align="RIGHT"><font size="-1">lead-based: </font></td>
+<td align="LEFT"><font size="-1">0.3575
+</font></td>
+</tr>
+</tbody></table></td>
+<td align="LEFT"><table cellpadding="3">
+<tbody><tr><td align="LEFT"><font size="-1">
+baselines: </font></td>
+<td align="RIGHT"><font size="-1">random:</font></td>
+<td align="LEFT"><font size="-1"> 0.3238</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-1"> 
+</font></td>
+<td align="RIGHT"><font size="-1">lead-based: </font></td>
+<td align="LEFT"><font size="-1"> 0.3686
+</font></td>
+</tr>
+</tbody></table></td>
+</tr>
+<tr><td align="CENTER" colspan="1"><font size="-1"> 
+</font>(a)</td>
+<td align="CENTER" colspan="1">(b)</td>
+</tr>
+<tr><td align="LEFT"><font size="-1"> 
+</font></td>
+<td></td>
+</tr>
+<tr><td align="LEFT"><font size="-1"> 
+</font></td>
+<td></td>
+</tr>
+<tr><td align="LEFT"><font size="-1"> 
+</font><table cellpadding="3" border="1">
+<tbody><tr><td></td>
+<td align="CENTER" colspan="3"><font size="-1">2004 Task4a</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+</font></td>
+<td align="CENTER"><font size="-1">min</font></td>
+<td align="CENTER"><font size="-1">max</font></td>
+<td align="CENTER"><font size="-1">average</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Centroid
+</font></td>
+<td align="CENTER"><font size="-1">0.3768</font></td>
+<td align="CENTER"><font size="-1">0.3901</font></td>
+<td align="CENTER"><font size="-1">0.3826</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Degree (t=0.1)
+</font></td>
+<td align="CENTER"><font size="-1">0.3863</font></td>
+<td align="CENTER"><font size="-1">0.4027</font></td>
+<td align="CENTER"><font size="-1">0.3928</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+LexRank (t=0.1)
+</font></td>
+<td align="CENTER"><font size="-1">0.3931</font></td>
+<td align="CENTER"><font size="-1">0.4038</font></td>
+<td align="CENTER"><font size="-1">0.3974</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Cont. LexRank
+</font></td>
+<td align="CENTER"><font size="-1">0.3924</font></td>
+<td align="CENTER"><font size="-1">0.4002</font></td>
+<td align="CENTER"><font size="-1">0.3963</font></td>
+</tr>
+</tbody></table></td>
+<td align="LEFT"><table cellpadding="3" border="1">
+<tbody><tr><td></td>
+<td align="CENTER" colspan="3"><font size="-1">2004 Task4b</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+</font></td>
+<td align="CENTER"><font size="-1">min</font></td>
+<td align="CENTER"><font size="-1">max</font></td>
+<td align="CENTER"><font size="-1">average</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Centroid
+</font></td>
+<td align="CENTER"><font size="-1">0.3760</font></td>
+<td align="CENTER"><font size="-1">0.3962</font></td>
+<td align="CENTER"><font size="-1">0.4034</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Degree (t=0.1)
+</font></td>
+<td align="CENTER"><font size="-1">0.3801</font></td>
+<td align="CENTER"><font size="-1">0.4147</font></td>
+<td align="CENTER"><font size="-1">0.4026</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+LexRank (t=0.1)
+</font></td>
+<td align="CENTER"><font size="-1">0.3837</font></td>
+<td align="CENTER"><font size="-1">0.4167</font></td>
+<td align="CENTER"><font size="-1">0.4052</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Cont. LexRank
+</font></td>
+<td align="CENTER"><font size="-1">0.3772</font></td>
+<td align="CENTER"><font size="-1">0.4082</font></td>
+<td align="CENTER"><font size="-1">0.3966</font></td>
+</tr>
+</tbody></table></td>
+</tr>
+<tr><td align="LEFT"><font size="-1"> 
+
+</font><table cellpadding="3">
+<tbody><tr><td align="LEFT"><font size="-1">
+baselines: </font></td>
+<td align="RIGHT"><font size="-1">random:</font></td>
+<td align="LEFT"><font size="-1"> 0.3593</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-1"> 
+</font></td>
+<td align="RIGHT"><font size="-1">lead-based: </font></td>
+<td align="LEFT"><font size="-1">0.3788
+</font></td>
+</tr>
+</tbody></table></td>
+<td align="LEFT"><table cellpadding="3">
+<tbody><tr><td align="LEFT"><font size="-1">
+baselines: </font></td>
+<td align="RIGHT"><font size="-1">random:</font></td>
+<td align="LEFT"><font size="-1"> 0.3734</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-1"> 
+</font></td>
+<td align="RIGHT"><font size="-1">lead-based: </font></td>
+<td align="LEFT"><font size="-1"> 0.3587
+</font></td>
+</tr>
+</tbody></table></td>
+</tr>
+<tr><td align="CENTER" colspan="1"><font size="-1"> 
+</font>(c)</td>
+<td align="CENTER" colspan="1">(d)</td>
+</tr>
+</tbody></table><font size="-1">
+
+<a name="results"></a></font></td></tr>
+</tbody></table>
+</div><p></p><br>
+
+<p>
+<br></p><p></p>
+<div align="CENTER"><a name="988"></a>
+<table>
+<caption><strong>Table 4:</strong>
+Summary of official ROUGE scores for DUC 2003 Task 2. Peer codes: manual
+summaries [A-J] and top five system submissions.
+</caption>
+<tbody><tr><td><div align="CENTER">
+<table cellpadding="3" border="1" align="CENTER">
+<tbody><tr><td align="CENTER" colspan="3"><font size="-2">
+TASK 2</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+
+</font><font size="-2"><b>Peer</b></font></td>
+<td align="CENTER"><font size="-2"><b>ROUGE-1</b></font></td>
+<td align="CENTER"><font size="-2"><b>95% Confidence</b></font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+</font><font size="-2"><b>Code</b></font></td>
+<td align="CENTER"><font size="-2"><b>Score</b></font></td>
+<td align="CENTER"><font size="-2"><b>Interval</b></font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+
+C</font></td>
+<td align="CENTER"><font size="-2">0.4443</font></td>
+<td align="CENTER"><font size="-2">[0.3924,0.4963]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+B</font></td>
+<td align="CENTER"><font size="-2">0.4425</font></td>
+<td align="CENTER"><font size="-2">[0.4138,0.4711]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+D</font></td>
+<td align="CENTER"><font size="-2">0.4344</font></td>
+<td align="CENTER"><font size="-2">[0.3821,0.4868]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+E</font></td>
+<td align="CENTER"><font size="-2">0.4218</font></td>
+<td align="CENTER"><font size="-2">[0.3871,0.4565]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+A</font></td>
+<td align="CENTER"><font size="-2">0.4168</font></td>
+<td align="CENTER"><font size="-2">[0.3864,0.4472]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+I</font></td>
+<td align="CENTER"><font size="-2">0.4055</font></td>
+<td align="CENTER"><font size="-2">[0.3740,0.4371]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+G</font></td>
+<td align="CENTER"><font size="-2">0.3978</font></td>
+<td align="CENTER"><font size="-2">[0.3765,0.4192]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+F</font></td>
+<td align="CENTER"><font size="-2">0.3904</font></td>
+<td align="CENTER"><font size="-2">[0.3596,0.4211]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+J</font></td>
+<td align="CENTER"><font size="-2">0.3895</font></td>
+<td align="CENTER"><font size="-2">[0.3591,0.4199]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+H</font></td>
+<td align="CENTER"><font size="-2">0.3869</font></td>
+<td align="CENTER"><font size="-2">[0.3659,0.4078]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+12</font></td>
+<td align="CENTER"><font size="-2">0.3798</font></td>
+<td align="CENTER"><font size="-2">[0.3598,0.3998]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+13</font></td>
+<td align="CENTER"><font size="-2">0.3676</font></td>
+<td align="CENTER"><font size="-2">[0.3507,0.3844]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+16</font></td>
+<td align="CENTER"><font size="-2">0.3660</font></td>
+<td align="CENTER"><font size="-2">[0.3474,0.3846]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+6</font></td>
+<td align="CENTER"><font size="-2">0.3607</font></td>
+<td align="CENTER"><font size="-2">[0.3415,0.3799]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+26</font></td>
+<td align="CENTER"><font size="-2">0.3582</font></td>
+<td align="CENTER"><font size="-2">[0.3337,0.3828]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+</font></td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table></div>
+
+<a name="duc03-official"></a></td></tr>
+</tbody></table>
+</div><p></p><br>
+
+<p>
+<br></p><p></p>
+<div align="CENTER"><a name="1058"></a>
+<table>
+<caption><strong>Table 5:</strong>
+Summary of official ROUGE scores for DUC 2004 Tasks 2 and 4. Peer codes: manual
+summaries [A-Z] and top five system submissions.
+Systems numbered 144 and 145 are University of Michigan's submission.
+144 uses LexRank in combination with Centroid whereas 145 uses Centroid alone.
+</caption>
+<tbody><tr><td><div align="CENTER">
+<table cellpadding="3" align="CENTER">
+<tbody><tr><td align="LEFT"><table cellpadding="3" border="1" align="CENTER">
+<tbody><tr><td align="CENTER" colspan="3"><font size="-2">
+TASK 2</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+
+</font><font size="-2"><b>Peer</b></font></td>
+<td align="CENTER"><font size="-2"><b>ROUGE-1</b></font></td>
+<td align="CENTER"><font size="-2"><b>95% Confidence</b></font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+</font><font size="-2"><b>Code</b></font></td>
+<td align="CENTER"><font size="-2"><b>Score</b></font></td>
+<td align="CENTER"><font size="-2"><b>Interval</b></font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+
+H</font></td>
+<td align="CENTER"><font size="-2">0.4183</font></td>
+<td align="CENTER"><font size="-2">[0.4019,0.4346]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+F</font></td>
+<td align="CENTER"><font size="-2">0.4125</font></td>
+<td align="CENTER"><font size="-2">[0.3916,0.4333]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+E</font></td>
+<td align="CENTER"><font size="-2">0.4104</font></td>
+<td align="CENTER"><font size="-2">[0.3882,0.4326]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+D</font></td>
+<td align="CENTER"><font size="-2">0.4059</font></td>
+<td align="CENTER"><font size="-2">[0.3870,0.4249]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+B</font></td>
+<td align="CENTER"><font size="-2">0.4043</font></td>
+<td align="CENTER"><font size="-2">[0.3795,0.4291]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+A</font></td>
+<td align="CENTER"><font size="-2">0.3933</font></td>
+<td align="CENTER"><font size="-2">[0.3722,0.4143]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+C</font></td>
+<td align="CENTER"><font size="-2">0.3904</font></td>
+<td align="CENTER"><font size="-2">[0.3715,0.4093]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+G</font></td>
+<td align="CENTER"><font size="-2">0.3890</font></td>
+<td align="CENTER"><font size="-2">[0.3679,0.4101]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+65</font></td>
+<td align="CENTER"><font size="-2">0.3822</font></td>
+<td align="CENTER"><font size="-2">[0.3694,0.3951]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+104</font></td>
+<td align="CENTER"><font size="-2">0.3744</font></td>
+<td align="CENTER"><font size="-2">[0.3635,0.3853]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+35</font></td>
+<td align="CENTER"><font size="-2">0.3743</font></td>
+<td align="CENTER"><font size="-2">[0.3612,0.3874]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+19</font></td>
+<td align="CENTER"><font size="-2">0.3739</font></td>
+<td align="CENTER"><font size="-2">[0.3608,0.3869]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+124</font></td>
+<td align="CENTER"><font size="-2">0.3706</font></td>
+<td align="CENTER"><font size="-2">[0.3578,0.3835]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+</font></td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table></td>
+<td align="RIGHT"><table cellpadding="3" border="1" align="CENTER">
+<tbody><tr><td align="CENTER" colspan="3"><font size="-2">
+TASK 4</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+
+</font><font size="-2"><b>Peer</b></font></td>
+<td align="CENTER"><font size="-2"><b>ROUGE-1</b></font></td>
+<td align="CENTER"><font size="-2"><b>95% Confidence</b></font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+</font><font size="-2"><b>Code</b></font></td>
+<td align="CENTER"><font size="-2"><b>Score</b></font></td>
+<td align="CENTER"><font size="-2"><b>Interval</b></font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+
+Y</font></td>
+<td align="CENTER"><font size="-2">0.4445</font></td>
+<td align="CENTER"><font size="-2">[0.4230,0.4660]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+Z</font></td>
+<td align="CENTER"><font size="-2">0.4326</font></td>
+<td align="CENTER"><font size="-2">[0.4088,0.4565]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+X</font></td>
+<td align="CENTER"><font size="-2">0.4293</font></td>
+<td align="CENTER"><font size="-2">[0.4068,0.4517]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+W</font></td>
+<td align="CENTER"><font size="-2">0.4119</font></td>
+<td align="CENTER"><font size="-2">[0.3870,0.4368]</font></td>
+</tr>
+<tr><td align="CENTER" colspan="3"><font size="-2"> 
+
+Task 4a</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+
+144</font></td>
+<td align="CENTER"><font size="-2">0.3883</font></td>
+<td align="CENTER"><font size="-2">[0.3626,0.4139]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+22</font></td>
+<td align="CENTER"><font size="-2">0.3865</font></td>
+<td align="CENTER"><font size="-2">[0.3635,0.4096]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+107</font></td>
+<td align="CENTER"><font size="-2">0.3862</font></td>
+<td align="CENTER"><font size="-2">[0.3555,0.4168]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+68</font></td>
+<td align="CENTER"><font size="-2">0.3816</font></td>
+<td align="CENTER"><font size="-2">[0.3642,0.3989]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+40</font></td>
+<td align="CENTER"><font size="-2">0.3796</font></td>
+<td align="CENTER"><font size="-2">[0.3581,0.4011]</font></td>
+</tr>
+<tr><td align="CENTER" colspan="3"><font size="-2"> 
+
+Task 4b</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+
+23</font></td>
+<td align="CENTER"><font size="-2">0.4158</font></td>
+<td align="CENTER"><font size="-2">[0.3933,0.4382]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+84</font></td>
+<td align="CENTER"><font size="-2">0.4101</font></td>
+<td align="CENTER"><font size="-2">[0.3854,0.4348]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+145</font></td>
+<td align="CENTER"><font size="-2">0.4060</font></td>
+<td align="CENTER"><font size="-2">[0.3678,0.4442]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+108</font></td>
+<td align="CENTER"><font size="-2">0.4006</font></td>
+<td align="CENTER"><font size="-2">[0.3700,0.4312]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+69</font></td>
+<td align="CENTER"><font size="-2">0.3984</font></td>
+<td align="CENTER"><font size="-2">[0.3744,0.4225]</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-2"> 
+</font></td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table></td>
+</tr>
+</tbody></table></div>
+
+<a name="duc04-official"></a></td></tr>
+</tbody></table>
+</div><p></p><br>
+
+<p>
+<br></p><p></p>
+<div align="CENTER"><a name="1117"></a>
+<table>
+<caption><strong>Table 6:</strong>
+ROUGE-1 scores for different MEAD policies on
+17% noisy DUC 2003 and 2004 data.</caption>
+<tbody><tr><td>
+<table cellpadding="3">
+<tbody><tr><td align="LEFT"><table cellpadding="3" border="1">
+<tbody><tr><td></td>
+<td align="CENTER" colspan="3"><font size="-1">2003 Task2</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+</font></td>
+<td align="CENTER"><font size="-1">min</font></td>
+<td align="CENTER"><font size="-1">max</font></td>
+<td align="CENTER"><font size="-1">average</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Centroid
+</font></td>
+<td align="CENTER"><font size="-1">0.3502</font></td>
+<td align="CENTER"><font size="-1">0.3689</font></td>
+<td align="CENTER"><font size="-1">0.3617</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Degree (t=0.1)
+</font></td>
+<td align="CENTER"><font size="-1">0.3501</font></td>
+<td align="CENTER"><font size="-1">0.3650</font></td>
+<td align="CENTER"><font size="-1">0.3573</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+LexRank (t=0.1)
+</font></td>
+<td align="CENTER"><font size="-1">0.3493</font></td>
+<td align="CENTER"><font size="-1">0.3677</font></td>
+<td align="CENTER"><font size="-1">0.3603</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Cont. LexRank
+</font></td>
+<td align="CENTER"><font size="-1">0.3564</font></td>
+<td align="CENTER"><font size="-1">0.3653</font></td>
+<td align="CENTER"><font size="-1">0.3621</font></td>
+</tr>
+</tbody></table></td>
+<td align="LEFT"><table cellpadding="3" border="1">
+<tbody><tr><td></td>
+<td align="CENTER" colspan="3"><font size="-1">2004 Task2</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+</font></td>
+<td align="CENTER"><font size="-1">min</font></td>
+<td align="CENTER"><font size="-1">max</font></td>
+<td align="CENTER"><font size="-1">average</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Centroid
+</font></td>
+<td align="CENTER"><font size="-1">0.3563</font></td>
+<td align="CENTER"><font size="-1">0.3732</font></td>
+<td align="CENTER"><font size="-1">0.3630</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Degree (t=0.1)
+</font></td>
+<td align="CENTER"><font size="-1">0.3495</font></td>
+<td align="CENTER"><font size="-1">0.3762</font></td>
+<td align="CENTER"><font size="-1">0.3622</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+LexRank (t=0.1)
+</font></td>
+<td align="CENTER"><font size="-1">0.3512</font></td>
+<td align="CENTER"><font size="-1">0.3760</font></td>
+<td align="CENTER"><font size="-1">0.3663</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Cont. LexRank
+</font></td>
+<td align="CENTER"><font size="-1">0.3465</font></td>
+<td align="CENTER"><font size="-1">0.3808</font></td>
+<td align="CENTER"><font size="-1">0.3686</font></td>
+</tr>
+</tbody></table></td>
+</tr>
+<tr><td align="LEFT"><font size="-1"> 
+
+</font><table cellpadding="3">
+<tbody><tr><td align="LEFT"><font size="-1">
+baselines: </font></td>
+<td align="RIGHT"><font size="-1">random:</font></td>
+<td align="LEFT"><font size="-1"> 0.2952</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-1"> 
+</font></td>
+<td align="RIGHT"><font size="-1">lead-based: </font></td>
+<td align="LEFT"><font size="-1">0.3246
+</font></td>
+</tr>
+</tbody></table></td>
+<td align="LEFT"><table cellpadding="3">
+<tbody><tr><td align="LEFT"><font size="-1">
+baselines: </font></td>
+<td align="RIGHT"><font size="-1">random:</font></td>
+<td align="LEFT"><font size="-1"> 0.3078</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-1"> 
+</font></td>
+<td align="RIGHT"><font size="-1">lead-based: </font></td>
+<td align="LEFT"><font size="-1"> 0.3418
+</font></td>
+</tr>
+</tbody></table></td>
+</tr>
+<tr><td align="CENTER" colspan="1"><font size="-1"> 
+</font>(a)</td>
+<td align="CENTER" colspan="1">(b)</td>
+</tr>
+<tr><td align="LEFT"><font size="-1"> 
+</font></td>
+<td></td>
+</tr>
+<tr><td align="LEFT"><font size="-1"> 
+</font></td>
+<td></td>
+</tr>
+<tr><td align="LEFT"><font size="-1"> 
+</font><table cellpadding="3" border="1">
+<tbody><tr><td></td>
+<td align="CENTER" colspan="3"><font size="-1">2004 Task4a</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+</font></td>
+<td align="CENTER"><font size="-1">min</font></td>
+<td align="CENTER"><font size="-1">max</font></td>
+<td align="CENTER"><font size="-1">average</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Centroid
+</font></td>
+<td align="CENTER"><font size="-1">0.3706</font></td>
+<td align="CENTER"><font size="-1">0.3898</font></td>
+<td align="CENTER"><font size="-1">0.3761</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Degree (t=0.1)
+</font></td>
+<td align="CENTER"><font size="-1">0.3874</font></td>
+<td align="CENTER"><font size="-1">0.3943</font></td>
+<td align="CENTER"><font size="-1">0.3906</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+LexRank (t=0.1)
+</font></td>
+<td align="CENTER"><font size="-1">0.3883</font></td>
+<td align="CENTER"><font size="-1">0.3992</font></td>
+<td align="CENTER"><font size="-1">0.3928</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Cont. LexRank
+</font></td>
+<td align="CENTER"><font size="-1">0.3889</font></td>
+<td align="CENTER"><font size="-1">0.3931</font></td>
+<td align="CENTER"><font size="-1">0.3908</font></td>
+</tr>
+</tbody></table></td>
+<td align="LEFT"><table cellpadding="3" border="1">
+<tbody><tr><td></td>
+<td align="CENTER" colspan="3"><font size="-1">2004 Task4b</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+</font></td>
+<td align="CENTER"><font size="-1">min</font></td>
+<td align="CENTER"><font size="-1">max</font></td>
+<td align="CENTER"><font size="-1">average</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Centroid
+</font></td>
+<td align="CENTER"><font size="-1">0.3754</font></td>
+<td align="CENTER"><font size="-1">0.3942</font></td>
+<td align="CENTER"><font size="-1">0.3906</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Degree (t=0.1)
+</font></td>
+<td align="CENTER"><font size="-1">0.3801</font></td>
+<td align="CENTER"><font size="-1">0.4090</font></td>
+<td align="CENTER"><font size="-1">0.3963</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+LexRank (t=0.1)
+</font></td>
+<td align="CENTER"><font size="-1">0.3710</font></td>
+<td align="CENTER"><font size="-1">0.4022</font></td>
+<td align="CENTER"><font size="-1">0.3911</font></td>
+</tr>
+<tr><td align="CENTER"><font size="-1"> 
+
+Cont. LexRank
+</font></td>
+<td align="CENTER"><font size="-1">0.3700</font></td>
+<td align="CENTER"><font size="-1">0.4012</font></td>
+<td align="CENTER"><font size="-1">0.3905</font></td>
+</tr>
+</tbody></table></td>
+</tr>
+<tr><td align="LEFT"><font size="-1"> 
+
+</font><table cellpadding="3">
+<tbody><tr><td align="LEFT"><font size="-1">
+baselines: </font></td>
+<td align="RIGHT"><font size="-1">random:</font></td>
+<td align="LEFT"><font size="-1"> 0.3315</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-1"> 
+</font></td>
+<td align="RIGHT"><font size="-1">lead-based: </font></td>
+<td align="LEFT"><font size="-1">0.3615
+</font></td>
+</tr>
+</tbody></table></td>
+<td align="LEFT"><table cellpadding="3">
+<tbody><tr><td align="LEFT"><font size="-1">
+baselines: </font></td>
+<td align="RIGHT"><font size="-1">random:</font></td>
+<td align="LEFT"><font size="-1"> 0.3391</font></td>
+</tr>
+<tr><td align="LEFT"><font size="-1"> 
+</font></td>
+<td align="RIGHT"><font size="-1">lead-based: </font></td>
+<td align="LEFT"><font size="-1"> 0.3430
+</font></td>
+</tr>
+</tbody></table></td>
+</tr>
+<tr><td align="CENTER" colspan="1"><font size="-1"> 
+</font>(c)</td>
+<td align="CENTER" colspan="1">(d)</td>
+</tr>
+</tbody></table><font size="-1">
+
+<a name="noisy"></a></font></td></tr>
+</tbody></table>
+</div><p></p><br>
+
+<p>
+
+</p><h2><a name="SECTION00053000000000000000">
+5.3 Experiments on Noisy Data</a>
+</h2>
+The graph-based methods we have proposed consider a document cluster as a
+whole. The centrality of a sentence is measured by looking
+at the overall interaction of the sentence within the cluster rather
+than the local value of the sentence in its document.
+This is especially critical in generic summarization where
+the information unrelated to the main theme of the cluster should
+be excluded from the summary.
+DUC data sets are perfectly clustered into related
+documents by human assessors.
+To observe the behavior of our methods on noisy data, 
+we have added 2 random documents in each cluster taken from a different
+cluster. 
+Since originally each cluster contains 10 documents, this means a
+<img width="39" height="34" align="MIDDLE" border="0" src="./Lexrank_files/img98.gif" alt="$2/12$"> (17%) noise on the data sets.
+
+<p>
+The results on the noisy data are given in Table&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#noisy">6</a>.
+The picture looks similar to Table&nbsp;<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#results">3</a> except for
+lead-based and random baselines are more significantly
+affected by the noise. The performance loss is quite small on
+our graph-based centrality methods. A surprising point is that
+centroid-based summarization also gives good results although
+still worse than the others most of the time. 
+This suggests that 17% noise on the data is not enough to make
+significant changes on the centroid of a cluster.
+
+</p><p>
+
+</p><h1><a name="SECTION00060000000000000000">
+6 Related Work</a>
+</h1>
+There have been attempts for using graph-based ranking methods in
+natural language applications before.  
+Salton et al. [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Salton_SPMamp_al.97">SSMB97</a>] made one
+of the first attempts of using degree centrality in single document
+text summarization.
+In the summarization approach of Salton et al.,
+degree scores are used to extract the important paragraphs of a text.
+
+<p>
+Moens, Uyttendaele, and Dumortier [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Moens99">MUD99</a>] use cosine similarity
+between the sentences to cluster a text into 
+different topical regions.
+A predefined cosine threshold is used to cluster paragraphs
+around seed paragraphs (called <i>medoids</i>).
+Seed paragraphs are determined by maximizing the total
+similarity between the seed and the other paragraphs in
+a cluster.
+The seed paragraphs are then considered as the 
+representative descriptions of the corresponding subtopics,
+and included in the summary.
+
+</p><p>
+Zha [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Zha02">Zha02</a>] 
+defines a bipartite graph from the set of terms
+to the set of sentences.
+There is an edge from a term <img width="11" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img99.gif" alt="$t$"> to a sentence <img width="13" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img100.gif" alt="$s$">
+if <img width="11" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img101.gif" alt="$t$"> occurs in <img width="13" height="16" align="BOTTOM" border="0" src="./Lexrank_files/img102.gif" alt="$s$">.
+Zha argues that the terms that appear
+in many sentences with high salience scores should
+have high salience scores, and the sentences
+that contain many terms with high salience scores
+should also have high salience scores.
+This <i>mutual reinforcement principal</i> reduces
+to a solution for the singular vectors of the
+transition matrix of the bipartite graph.
+
+</p><p>
+The work presented in this paper started with the 
+implementation of LexRank with threshold on unweighted graphs.
+This implementation was first used in the DUC 2004 evaluations
+which was run in February 2004 and presented in May 2004
+[<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#DUC04">ER04b</a>].
+After the DUC evaluations, a more detailed analysis and more careful
+implementation of the method was presented together with a comparison 
+against
+degree centrality and centroid-based summarization
+[<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#erkan-radev:2004:EMNLP">ER04a</a>]. 
+Continuous LexRank
+on weighted graphs first appeared in the initial version of
+this paper submitted in July 2004.
+An eigenvector centrality algorithm
+on weighted graphs was independently proposed
+by Mihalcea et al.
+for single-document
+summarization [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#mihalcea-tarau:2004:EMNLP">MT04</a>].
+Mihalcea, Tarau, and Figa [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#mihalcea:COLING04">MTF04</a>] later
+applied PageRank to another problem of
+natural language processing, word sense disambiguation.
+
+</p><p>
+Unlike our system, the studies mentioned above
+do not make use of any heuristic features of the
+sentences other than the centrality score.
+They do not also deal with the multi-document case.
+One of the main problems with multi-document summarization is
+the potential duplicate information coming from different documents,
+which is less likely to occur in single-document summaries.
+We try to avoid the repeated information in the summaries by
+using the reranker of the MEAD system.
+This problem is also addressed in Salton et al.'s
+work [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#Salton_SPMamp_al.97">SSMB97</a>].
+Instead of using a reranker, they
+first segment the text into regions of different subtopics and then 
+take at least one representative paragraph with the highest
+degree value from each region.
+
+</p><p>
+To determine the similarity between two sentences, we have used 
+the cosine
+similarity metric that is based on word overlap and idf weighting.
+However, there are more advanced techniques of assessing
+similarity which are often used in the topical clustering of
+documents or sentences [<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#simfinder">HKH$^+$01</a>,<a href="https://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html#McKeown_SPMamp_al.01d">MBE$^+$01</a>].
+The similarity computation might be improved by incorporating more
+features (e.g. synonym overlap, verb/argument structure overlap,
+stem overlap) or mechanisms (e.g. coreference resolution,
+paraphrasing) into the system.
+These improvements are orthogonal to our model in this paper and
+can be easily integrated into the similarity relation.
+
+</p><p>
+
+</p><h1><a name="SECTION00070000000000000000">
+7 Conclusion</a>
+</h1>
+We have presented a new approach to define sentence salience based on
+graph-based centrality scoring of sentences.  Constructing the
+similarity graph of sentences provides us with a better view of
+<i>important</i> sentences compared to the centroid approach, which is
+prone to over-generalization of the information in a document cluster.
+We have introduced three different methods for computing centrality in
+similarity graphs.  The results of applying these methods on
+extractive summarization are quite promising. Even the simplest
+approach we have taken, degree centrality, is a good enough heuristic
+to perform better than lead-based and centroid-based summaries.  In
+LexRank, we have tried to make use of more of the information in the
+graph, and got even better results in most of the cases.  Lastly, we
+have shown that our methods are quite insensitive to noisy data that
+often occurs as a result of imperfect topical document clustering
+algorithms.
+
+<p>
+The graph-based representation of the relations between natural
+language constructs provides us with many new ways of information
+processing with applications to several problems such as document
+clustering, word sense disambiguation, prepositional phrase
+attachment.  The similarity relation we used to construct the graphs
+can be replaced by any mutual information relation between natural
+language entities.  We are currently working on using random walks on
+bipartite graphs (binary features on the left, objects to be
+classified on the right) for semi-supervised classification. For
+example, objects can be email messages and a binary feature may be
+``does the subject line of this message contain the word <em>money</em>''. All objects are linked to the features that apply to them. A
+path through the graph can then go from an unlabeled object to a set
+of labeled ones going through a sequence of other objects and
+features. In traditional supervised or semi-supervised learning, one
+could not make effective use of the features solely associated with
+unlabeled examples. In this framework, these features serve as
+intermediate nodes on a path from unlabeled to labeled nodes. An
+eigenvector centrality method can then associate a probability with
+each object (labeled or unlabeled). That probability can then in turn
+be interpreted as belief in the classification of the object (e.g.,
+there is an 87% per cent chance that this particular email message is
+spam). In an active learning setting, one can also choose 
+what label to request next from an Oracle given the eigenvector
+centrality values of all objects.
+
+</p><p>
+
+</p><h1><a name="SECTION00080000000000000000">
+Acknowledgments</a>
+</h1>
+We would like to thank Mark Newman for providing some useful
+references for this paper. Thanks also go to Lillian Lee for her very
+helpful comments on an earlier version of this paper. Finally, we
+would like to thank the members of the CLAIR (Computational
+Linguistics And Information Retrieval) group at the University of
+Michigan, in particular Siwei Shen, for their assistance with this
+project.
+
+<p>
+This work was partially supported by the National Science Foundation
+under grant 0329043 ``Probabilistic and link-based Methods for
+Exploiting Very Large Textual Repositories'' administered through the
+IDM program. All opinions, findings, conclusions, and recommendations
+in this paper are made by the authors and do not necessarily reflect
+the views of the National Science Foundation.
+
+</p><p>
+
+</p><h2><a name="SECTION00090000000000000000">
+Bibliography</a>
+</h2><dl compact=""><dd><p></p></dd><dt><a name="baxendale58">Bax58</a>
+</dt><dd>
+P.B. Baxendale.
+<br>Man-made index for technical litterature - an experiment.
+<br><em>IBM J. Res. Dev.</em>, 2(4):354-361, 1958.
+
+<p></p></dd><dt><a name="Barzilay_SPMamp_Elhadad99">BE99</a>
+</dt><dd>
+Regina Barzilay and Michael Elhadad.
+<br>Using lexical chains for text summarization.
+<br>In Inderjeet Mani and Mark&nbsp;T. Maybury, editors, <em>Advances in
+  Automatic Text Summarization</em>, pages 111-121. The MIT Press, 1999.
+
+<p></p></dd><dt><a name="Brew_SPMamp_SchulteImWalde02">BiW02</a>
+</dt><dd>
+Chris Brew and Sabine&nbsp;Schulte im&nbsp;Walde.
+<br>Spectral clustering for german verbs.
+<br>In <em>Proceedings of the 40th Annual Meeting of the Association for
+  Computational Linguistics</em>, 2002.
+
+<p></p></dd><dt><a name="Barzilay_SPMamp_Lee03">BL03</a>
+</dt><dd>
+Regina Barzilay and Lillian Lee.
+<br>Learning to paraphrase: An unsupervised approach using
+  multiple-sequence alignment.
+<br>In <em>Proceedings of HLT-NAACL</em>, 2003.
+
+<p></p></dd><dt><a name="brandow_SPMamp_al.95">BMR95</a>
+</dt><dd>
+Ron Brandow, Karl Mitze, and Lisa&nbsp;F. Rau.
+<br>Automatic condensation of electronic publications by sentence
+  selection.
+<br><em>Information Processing and Management</em>, 31(5):675-685, 1995.
+
+<p></p></dd><dt><a name="brin98anatomy">BP98</a>
+</dt><dd>
+Sergey Brin and Lawrence Page.
+<br>The anatomy of a large-scale hypertextual Web search engine.
+<br><em>Computer Networks and ISDN Systems</em>, 30(1-7):107-117, 1998.
+
+<p></p></dd><dt><a name="carbonell_SPMamp_goldstein98">CG98</a>
+</dt><dd>
+Jaime&nbsp;G. Carbonell and Jade Goldstein.
+<br>The use of MMR, diversity-based reranking for reordering documents
+  and producing summaries.
+<br>In <em>Research and Development in Information Retrieval</em>, pages
+  335-336, 1998.
+
+<p></p></dd><dt><a name="Collins97">Col97</a>
+</dt><dd>
+Michael Collins.
+<br>Three generative, lexicalised models for statistical parsing.
+<br>In <em>Proceedings of the 33rd Annual Meeting of the Association for
+  Computational Linguistics</em>, 1997.
+
+<p></p></dd><dt><a name="daumeiii-marcu:2004:EMNLP1">DIM04</a>
+</dt><dd>
+Hal Daumé&nbsp;III and Daniel Marcu.
+<br>A phrase-based hmm approach to document/abstract alignment.
+<br>In Dekang Lin and Dekai Wu, editors, <em>Proceedings of EMNLP 2004</em>,
+  pages 119-126, Barcelona, Spain, July 2004. Association for Computational
+  Linguistics.
+
+<p></p></dd><dt><a name="edmundson69">Edm69</a>
+</dt><dd>
+H.P. Edmundson.
+<br>New Methods in Automatic Extracting.
+<br><em>Journal of the Association for Computing Machinery</em>,
+  16(2):264-285, April 1969.
+
+<p></p></dd><dt><a name="erkan-radev:2004:EMNLP">ER04a</a>
+</dt><dd>
+Güne&#351; Erkan and Dragomir&nbsp;R. Radev.
+<br>Lexpagerank: Prestige in multi-document text summarization.
+<br>In Dekang Lin and Dekai Wu, editors, <em>Proceedings of EMNLP 2004</em>,
+  pages 365-371, Barcelona, Spain, July 2004. Association for Computational
+  Linguistics.
+
+<p></p></dd><dt><a name="DUC04">ER04b</a>
+</dt><dd>
+Güne&#351; Erkan and Dragomir&nbsp;R. Radev.
+<br>The University of Michigan at DUC 2004.
+<br>In <em>Proceedings of the Document Understanding Conferences</em>,
+  Boston, MA, May 2004.
+
+<p></p></dd><dt><a name="simfinder">HKH$^+$01</a>
+</dt><dd>
+V.&nbsp;Hatzivassiloglou, J.&nbsp;Klavans, M.&nbsp;Holcombe, R.&nbsp;Barzilay, M.&nbsp;Kan, and
+  K.&nbsp;McKeown.
+<br>Simfinder: A flexible clustering tool for summarization, 2001.
+
+<p></p></dd><dt><a name="Jing02-cl">Jin02</a>
+</dt><dd>
+Hongyan Jing.
+<br>Using hidden markov modeling to decompose Human-Written summaries.
+<br><em>CL</em>, 28(4):527-543, 2002.
+
+<p></p></dd><dt><a name="Knight_SPMamp_Marcu00">KM00</a>
+</dt><dd>
+Kevin Knight and Daniel Marcu.
+<br>Statistics-based summarization -- step one: Sentence compression.
+<br>In <em>Proceeding of The 17th National Conference of the American
+  Association for Artificial Intelligence (AAAI-2000)</em>, pages 703-710, 2000.
+
+<p></p></dd><dt><a name="Kupiec_SPMamp_al.95">KPC95</a>
+</dt><dd>
+Julian Kupiec, Jan&nbsp;O. Pedersen, and Francine Chen.
+<br>A trainable document summarizer.
+<br>In <em>Research and Development in Information Retrieval</em>, pages
+  68-73, 1995.
+
+<p></p></dd><dt><a name="rouge-naacl">LH03</a>
+</dt><dd>
+Chin-Yew Lin and E.H. Hovy.
+<br>Automatic evaluation of summaries using n-gram co-occurrence.
+<br>In <em>Proceedings of 2003 Language Technology Conference (HLT-NAACL
+  2003), Edmonton, Canada, May 27 - June 1</em>, 2003.
+
+<p></p></dd><dt><a name="lin99">Lin99</a>
+</dt><dd>
+C-Y. Lin.
+<br>Training a Selection Function for Extraction.
+<br>In <em>Proceedings of the Eighteenth Annual International ACM
+  Conference on Information and Knowledge Management (CIKM)</em>, pages 55-62,
+  Kansas City, November -6 1999. ACM.
+
+<p></p></dd><dt><a name="luhn58">Luh58</a>
+</dt><dd>
+H.P. Luhn.
+<br>The Automatic Creation of Literature Abstracts.
+<br><em>IBM Journal of Research Development</em>, 2(2):159-165, 1958.
+
+<p></p></dd><dt><a name="Mani_SPMamp_Bloedorn97a">MB97</a>
+</dt><dd>
+Inderjeet Mani and Eric Bloedorn.
+<br>Multi-document summarization by graph search and matching.
+<br>In <em>Proceedings of the Fourteenth National Conference on
+  Artificial Intelligence (AAAI-97)</em>, pages 622-628, Providence, Rhode Island,
+  1997. American Association for Artificial Intelligence.
+
+<p></p></dd><dt><a name="McKeown_SPMamp_al.01d">MBE$^+$01</a>
+</dt><dd>
+Kathleen&nbsp;R. McKeown, Regina Barzilay, David Evans, Vasileios Hatzivassiloglou,
+  Simone Teufel, Yen&nbsp;M. Kan, and Barry Schiffman.
+<br>Columbia Multi-Document Summarization: Approach and Evaluation.
+<br>In <em>Proceedings of the 24th Annual International ACM SIGIR
+  Conference on Research and Development in Information Retrieval</em>, New
+  Orleans, LA, 2001.
+
+<p></p></dd><dt><a name="mihalcea-tarau:2004:EMNLP">MT04</a>
+</dt><dd>
+Rada Mihalcea and Paul Tarau.
+<br>Textrank: Bringing order into texts.
+<br>In Dekang Lin and Dekai Wu, editors, <em>Proceedings of EMNLP 2004</em>,
+  pages 404-411, Barcelona, Spain, July 2004. Association for Computational
+  Linguistics.
+
+<p></p></dd><dt><a name="mihalcea:COLING04">MTF04</a>
+</dt><dd>
+Rada Mihalcea, Paul Tarau, and Elizabeth Figa.
+<br>Pagerank on semantic networks, with application to word sense
+  disambiguation.
+<br>In <em>Proceedings of The 20st International Conference on
+  Computational Linguistics (COLING 2004)</em>, Geneva, Switzerland, August 2004.
+
+<p></p></dd><dt><a name="Moens99">MUD99</a>
+</dt><dd>
+Marie-Francine Moens, Caroline Uyttendaele, and Jos Dumortier.
+<br>Abstracting of legal cases: the potential of clustering based on the
+  selection of representative objects.
+<br><em>J. Am. Soc. Inf. Sci.</em>, 50(2):151-161, 1999.
+
+<p></p></dd><dt><a name="Osborne02">Osb02</a>
+</dt><dd>
+Miles Osborne.
+<br>Using Maximum Entropy for Sentence Extraction.
+<br>In <em>ACL Workshop on Text Summarization</em>, July 12-13, 2002.
+
+<p></p></dd><dt><a name="pagerank">PBMW98</a>
+</dt><dd>
+L.&nbsp;Page, S.&nbsp;Brin, R.&nbsp;Motwani, and T.&nbsp;Winograd.
+<br>The pagerank citation ranking: Bringing order to the web.
+<br><em>Technical report, Stanford University, Stanford, CA</em>, 1998.
+
+<p></p></dd><dt><a name="Radev00">Rad00</a>
+</dt><dd>
+Dragomir Radev.
+<br>A common theory of information fusion from multiple text sources,
+  step one: Cross-document structure.
+<br>In <em>Proceedings, 1st ACL SIGDIAL Workshop on Discourse and
+  Dialogue</em>, Hong Kong, October 2000.
+
+<p></p></dd><dt><a name="Radev_SPMamp_al.01h">RBGZ01</a>
+</dt><dd>
+Dragomir Radev, Sasha Blair-Goldensohn, and Zhu Zhang.
+<br>Experiments in single and multi-document summarization using MEAD.
+<br>In <em>First Document Understanding Conference</em>, New Orleans, LA,
+  September 2001.
+
+<p></p></dd><dt><a name="Radev_SPMamp_al.00">RJB00</a>
+</dt><dd>
+Dragomir&nbsp;R. Radev, Hongyan Jing, and Malgorzata Budzikowska.
+<br>Centroid-based summarization of multiple documents: sentence
+  extraction, utility-based evaluation, and user studies.
+<br>In <em>ANLP/NAACL Workshop on Summarization</em>, Seattle, WA, April
+  2000.
+
+<p></p></dd><dt><a name="Radev_SPMamp_McKeown98">RM98</a>
+</dt><dd>
+Dragomir&nbsp;R. Radev and Kathleen&nbsp;R. McKeown.
+<br>Generating natural language summaries from multiple on-line sources.
+<br><em>Computational Linguistics</em>, 24(3):469-500, September 1998.
+
+<p></p></dd><dt><a name="Seneta:81">Sen81</a>
+</dt><dd>
+E.&nbsp;Seneta.
+<br><em>Non-negative matrices and markov chains</em>.
+<br>Springer-Verlag, New York, 1981.
+
+<p></p></dd><dt><a name="sparck72statistical">SJ72</a>
+</dt><dd>
+K.&nbsp;Sparck-Jones.
+<br>A statistical interpretation of term specificity and its application
+  in retrieval.
+<br><em>Journal of Documentation</em>, 28(1):11-20, 1972.
+
+<p></p></dd><dt><a name="Salton_SPMamp_al.97">SSMB97</a>
+</dt><dd>
+G.&nbsp;Salton, A.&nbsp;Singhal, M.&nbsp;Mitra, and C.&nbsp;Buckley.
+<br>Automatic Text Structuring and Summarization.
+<br><em>Information Processing &amp; Management</em>, 33(2):193-207, 1997.
+
+<p></p></dd><dt><a name="Toutanova_SPMamp_al.04">TMN04</a>
+</dt><dd>
+Kristina Toutanova, Chris Manning, and Andrew Ng.
+<br>Learning random walk models for inducing word dependency
+  distributions.
+<br>In <em>Proceedings of ICML</em>, 2004.
+
+<p></p></dd><dt><a name="Witbrock_SPMamp_Mittal99">WM99</a>
+</dt><dd>
+Michael Witbrock and Vibhu&nbsp;O. Mittal.
+<br>Ultra-Summarization: A Statistical Approach to Generating Highly
+  Condensed Non-Extractive Summaries.
+<br>In <em>SIGIR99</em>, pages 315-316, Berkeley, CA, 1999.
+
+<p></p></dd><dt><a name="Yarowsky95">Yar95</a>
+</dt><dd>
+David Yarowsky.
+<br>Unsupervised word sense disambiguation rivaling supervised methods.
+<br>In <em>Proceedings of the 33rd Annual Meeting of the Association for
+  Computational Linguistics</em>, 1995.
+
+<p></p></dd><dt><a name="Zha02">Zha02</a>
+</dt><dd>
+Hongyuan Zha.
+<br>Generic Summarization and Key Phrase Extraction Using Mutual
+  Reinforcement Principle and Sentence Clustering.
+<br>In <em>Proceedings of the 25th Annual International ACM SIGIR
+  Conference on Research and Development in Information Retrieval</em>, Tampere,
+  Finland, 2002.
+</dd></dl>
+
+<br>
+
+
+</body></html>
